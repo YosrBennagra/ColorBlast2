@@ -1,10 +1,14 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using System.Collections;
 using System.Collections.Generic;
+using System;
 
 public class Drag2D : MonoBehaviour
 {
+    // Events for line clearing
+    public static event Action<List<Vector2Int>> OnLinesCleared;
+    public static event Action<int> OnShapesDestroyed;
+    
     private Vector3 offset;
     private Camera cam;
     private bool isDragging = false;
@@ -18,19 +22,10 @@ public class Drag2D : MonoBehaviour
     [SerializeField] private Color placedColor = Color.gray; // Color when shape is placed
     private Color originalColor; // Store original color
     private SpriteRenderer[] tileRenderers; // References to all tile renderers
-    
-    [Header("Line Clearing")]
-    [SerializeField] private float lineClrearDelay = 0.5f; // Delay before clearing lines for visual effect
+    private Color[] originalTileColors; // Store original colors of each tile
     
     // Reference to occupied grid positions (shared across all shapes)
     private static HashSet<Vector2Int> occupiedGridPositions = new HashSet<Vector2Int>();
-    
-    // Events for line clearing (can be subscribed to by UI or audio systems)
-    public static System.Action<int, int> OnLinesCleared; // Parameters: rows cleared, columns cleared
-    public static System.Action<int> OnScoreChanged; // Parameter: new score
-    
-    // Static score tracking
-    private static int totalScore = 0;
     
     void Start()
     {
@@ -48,6 +43,16 @@ public class Drag2D : MonoBehaviour
         if (tileRenderers.Length > 0)
         {
             originalColor = tileRenderers[0].color;
+            
+            // Store original colors of all tiles
+            originalTileColors = new Color[tileRenderers.Length];
+            for (int i = 0; i < tileRenderers.Length; i++)
+            {
+                if (tileRenderers[i] != null)
+                {
+                    originalTileColors[i] = tileRenderers[i].color;
+                }
+            }
         }
     }
 
@@ -165,6 +170,21 @@ public class Drag2D : MonoBehaviour
             
             // Mark as placed and update visual appearance
             MarkAsPlaced();
+            
+            // Check for line clearing after placing the shape
+            List<Vector2Int> clearedPositions = CheckAndClearLines();
+            if (clearedPositions.Count > 0)
+            {
+                // Handle shape destruction for cleared positions
+                int destroyedShapes = DestroyShapesAtPositions(clearedPositions);
+                
+                // Invoke events
+                OnLinesCleared?.Invoke(clearedPositions);
+                OnShapesDestroyed?.Invoke(destroyedShapes);
+                
+                // Optional: Add visual effects or score updates here
+                Debug.Log($"Cleared {clearedPositions.Count} tiles from completed lines!");
+            }
         }
         else
         {
@@ -248,25 +268,19 @@ public class Drag2D : MonoBehaviour
     
     private Vector2Int WorldToGridPosition(Vector3 worldPos)
     {
-        GridGenerator gridGen = FindFirstObjectByType<GridGenerator>();
-        if (gridGen == null)
-        {
-            // Fallback to the old method if GridGenerator is not found
-            return new Vector2Int(
-                Mathf.RoundToInt(worldPos.x / gridSize),
-                Mathf.RoundToInt(worldPos.y / gridSize)
-            );
-        }
-        
-        // Calculate grid position based on the actual grid layout
-        Vector3 gridStartPos = gridGen.transform.position;
-        float xOffset = worldPos.x - gridStartPos.x;
-        float yOffset = gridStartPos.y - worldPos.y; // Y is inverted in grid generation
-        
-        int gridX = Mathf.RoundToInt(xOffset / (gridGen.tileSize.x + gridGen.spacing));
-        int gridY = Mathf.RoundToInt(yOffset / (gridGen.tileSize.y + gridGen.spacing));
-        
-        return new Vector2Int(gridX, gridY);
+        return new Vector2Int(
+            Mathf.RoundToInt(worldPos.x / gridSize),
+            Mathf.RoundToInt(worldPos.y / gridSize)
+        );
+    }
+    
+    // Static version for use in static methods
+    private static Vector2Int WorldToGridPositionStatic(Vector3 worldPos, float gridSize = 1f)
+    {
+        return new Vector2Int(
+            Mathf.RoundToInt(worldPos.x / gridSize),
+            Mathf.RoundToInt(worldPos.y / gridSize)
+        );
     }
     
     private void MarkAsPlaced()
@@ -290,186 +304,6 @@ public class Drag2D : MonoBehaviour
         }
         
         Debug.Log($"Shape {gameObject.name} has been placed and is now locked.");
-        
-        // Check for completed lines after placing the shape
-        CheckAndClearCompletedLines();
-    }
-    
-    private void CheckAndClearCompletedLines()
-    {
-        GridGenerator gridGen = FindFirstObjectByType<GridGenerator>();
-        if (gridGen == null) return;
-        
-        List<int> completedRows = GetCompletedRows(gridGen);
-        List<int> completedColumns = GetCompletedColumns(gridGen);
-        
-        // Clear completed lines
-        if (completedRows.Count > 0 || completedColumns.Count > 0)
-        {
-            StartCoroutine(ClearCompletedLinesCoroutine(completedRows, completedColumns));
-        }
-    }
-    
-    private List<int> GetCompletedRows(GridGenerator gridGen)
-    {
-        List<int> completedRows = new List<int>();
-        
-        for (int y = 0; y < gridGen.rows; y++)
-        {
-            bool rowComplete = true;
-            for (int x = 0; x < gridGen.columns; x++)
-            {
-                Vector2Int gridPos = new Vector2Int(x, y);
-                if (!occupiedGridPositions.Contains(gridPos))
-                {
-                    rowComplete = false;
-                    break;
-                }
-            }
-            if (rowComplete)
-            {
-                completedRows.Add(y);
-            }
-        }
-        
-        return completedRows;
-    }
-    
-    private List<int> GetCompletedColumns(GridGenerator gridGen)
-    {
-        List<int> completedColumns = new List<int>();
-        
-        for (int x = 0; x < gridGen.columns; x++)
-        {
-            bool columnComplete = true;
-            for (int y = 0; y < gridGen.rows; y++)
-            {
-                Vector2Int gridPos = new Vector2Int(x, y);
-                if (!occupiedGridPositions.Contains(gridPos))
-                {
-                    columnComplete = false;
-                    break;
-                }
-            }
-            if (columnComplete)
-            {
-                completedColumns.Add(x);
-            }
-        }
-        
-        return completedColumns;
-    }
-    
-    private System.Collections.IEnumerator ClearCompletedLinesCoroutine(List<int> completedRows, List<int> completedColumns)
-    {
-        // Optional: Add visual effect here (like flashing the completed lines)
-        yield return new WaitForSeconds(lineClrearDelay);
-        
-        ClearCompletedLines(completedRows, completedColumns);
-    }
-    
-    private void ClearCompletedLines(List<int> completedRows, List<int> completedColumns)
-    {
-        GridGenerator gridGen = FindFirstObjectByType<GridGenerator>();
-        if (gridGen == null) return;
-        
-        HashSet<Vector2Int> positionsToRemove = new HashSet<Vector2Int>();
-        
-        // Add all positions from completed rows
-        foreach (int row in completedRows)
-        {
-            for (int x = 0; x < gridGen.columns; x++)
-            {
-                positionsToRemove.Add(new Vector2Int(x, row));
-            }
-            Debug.Log($"Clearing completed row: {row}");
-        }
-        
-        // Add all positions from completed columns
-        foreach (int column in completedColumns)
-        {
-            for (int y = 0; y < gridGen.rows; y++)
-            {
-                positionsToRemove.Add(new Vector2Int(column, y));
-            }
-            Debug.Log($"Clearing completed column: {column}");
-        }
-        
-        // Remove the positions from occupied grid
-        foreach (Vector2Int pos in positionsToRemove)
-        {
-            occupiedGridPositions.Remove(pos);
-        }
-        
-        // Find and destroy the visual representation of cleared shapes
-        DestroyShapeTilesAtPositions(positionsToRemove);
-        
-        // Calculate and add score
-        int scoreToAdd = CalculateScore(completedRows.Count, completedColumns.Count);
-        totalScore += scoreToAdd;
-        
-        Debug.Log($"Cleared {completedRows.Count} rows and {completedColumns.Count} columns! Score: +{scoreToAdd} (Total: {totalScore})");
-        
-        // Trigger events for UI updates
-        OnLinesCleared?.Invoke(completedRows.Count, completedColumns.Count);
-        OnScoreChanged?.Invoke(totalScore);
-    }
-    
-    private static int CalculateScore(int rowsCleared, int columnsCleared)
-    {
-        // Base score per line
-        int baseScore = 100;
-        
-        // Bonus for clearing multiple lines at once
-        int totalLines = rowsCleared + columnsCleared;
-        int multiplier = 1;
-        
-        if (totalLines >= 4)
-            multiplier = 4; // Tetris-style bonus
-        else if (totalLines >= 3)
-            multiplier = 3;
-        else if (totalLines >= 2)
-            multiplier = 2;
-            
-        return baseScore * totalLines * multiplier;
-    }
-    
-    private void DestroyShapeTilesAtPositions(HashSet<Vector2Int> positionsToRemove)
-    {
-        // Find all Drag2D components in the scene
-        Drag2D[] allShapes = FindObjectsByType<Drag2D>(FindObjectsSortMode.None);
-        
-        foreach (Drag2D shape in allShapes)
-        {
-            if (!shape.isPlaced) continue;
-            
-            // Get the shape's current grid position
-            Vector2Int shapeGridPos = WorldToGridPosition(shape.transform.position);
-            
-            // Check if any of this shape's tiles are in the positions to remove
-            List<Vector2Int> shapeTilesToRemove = new List<Vector2Int>();
-            foreach (Vector2Int shapeOffset in shape.shapeOffsets)
-            {
-                Vector2Int tilePos = shapeGridPos + shapeOffset;
-                if (positionsToRemove.Contains(tilePos))
-                {
-                    shapeTilesToRemove.Add(shapeOffset);
-                }
-            }
-            
-            // If all tiles of this shape are being removed, destroy the entire shape
-            if (shapeTilesToRemove.Count == shape.shapeOffsets.Count)
-            {
-                Destroy(shape.gameObject);
-            }
-            else if (shapeTilesToRemove.Count > 0)
-            {
-                // Partially remove tiles from this shape
-                // For now, we'll destroy the entire shape if any of its tiles are cleared
-                // You could implement more complex logic here to handle partial removal
-                Destroy(shape.gameObject);
-            }
-        }
     }
     
     // Public method to reset shape (useful for level restart or undo functionality)
@@ -514,10 +348,353 @@ public class Drag2D : MonoBehaviour
         shapeOffsets = new List<Vector2Int>(offsets);
     }
     
+    // Method to refresh tile renderers after tiles are destroyed
+    public void RefreshTileRenderers()
+    {
+        tileRenderers = GetComponentsInChildren<SpriteRenderer>();
+        if (tileRenderers.Length > 0 && originalColor == Color.clear)
+        {
+            originalColor = tileRenderers[0].color;
+        }
+        
+        // Also refresh original tile colors if needed
+        if (originalTileColors == null || originalTileColors.Length != tileRenderers.Length)
+        {
+            originalTileColors = new Color[tileRenderers.Length];
+            for (int i = 0; i < tileRenderers.Length; i++)
+            {
+                if (tileRenderers[i] != null)
+                {
+                    originalTileColors[i] = tileRenderers[i].color;
+                }
+            }
+        }
+    }
+    
     // Method to clear all occupied positions (useful for restarting level)
     public static void ClearAllOccupiedPositions()
     {
         occupiedGridPositions.Clear();
+    }
+    
+    // Line clearing functionality with cascading support
+    public static List<Vector2Int> CheckAndClearLines()
+    {
+        List<Vector2Int> totalClearedPositions = new List<Vector2Int>();
+        GridGenerator gridGen = FindFirstObjectByType<GridGenerator>();
+        
+        if (gridGen == null)
+        {
+            Debug.LogWarning("GridGenerator not found! Cannot check for line clearing.");
+            return totalClearedPositions;
+        }
+        
+        bool foundCompletedLines;
+        int cascadeLevel = 0;
+        
+        // Keep checking for completed lines until none are found (cascading clears)
+        do
+        {
+            foundCompletedLines = false;
+            List<Vector2Int> currentClearedPositions = new List<Vector2Int>();
+            
+            // Check for horizontal lines
+            for (int row = 0; row < gridGen.rows; row++)
+            {
+                if (IsHorizontalLineComplete(row, gridGen))
+                {
+                    List<Vector2Int> linePositions = ClearHorizontalLine(row, gridGen);
+                    currentClearedPositions.AddRange(linePositions);
+                    foundCompletedLines = true;
+                    Debug.Log($"Cleared horizontal line at row {row} (cascade level {cascadeLevel})");
+                }
+            }
+            
+            // Check for vertical lines
+            for (int col = 0; col < gridGen.columns; col++)
+            {
+                if (IsVerticalLineComplete(col, gridGen))
+                {
+                    List<Vector2Int> linePositions = ClearVerticalLine(col, gridGen);
+                    currentClearedPositions.AddRange(linePositions);
+                    foundCompletedLines = true;
+                    Debug.Log($"Cleared vertical line at column {col} (cascade level {cascadeLevel})");
+                }
+            }
+            
+            totalClearedPositions.AddRange(currentClearedPositions);
+            cascadeLevel++;
+            
+            // Prevent infinite loops
+            if (cascadeLevel > 10)
+            {
+                Debug.LogWarning("Maximum cascade level reached! Breaking to prevent infinite loop.");
+                break;
+            }
+            
+        } while (foundCompletedLines);
+        
+        if (cascadeLevel > 1)
+        {
+            Debug.Log($"Cascade clear completed! {cascadeLevel - 1} cascade levels processed.");
+        }
+        
+        return totalClearedPositions;
+    }
+    
+    private static bool IsHorizontalLineComplete(int row, GridGenerator gridGen)
+    {
+        for (int col = 0; col < gridGen.columns; col++)
+        {
+            Vector2Int gridPos = ArrayIndicesToGridPosition(col, row, gridGen);
+            if (!occupiedGridPositions.Contains(gridPos))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    private static bool IsVerticalLineComplete(int col, GridGenerator gridGen)
+    {
+        for (int row = 0; row < gridGen.rows; row++)
+        {
+            Vector2Int gridPos = ArrayIndicesToGridPosition(col, row, gridGen);
+            if (!occupiedGridPositions.Contains(gridPos))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    private static List<Vector2Int> ClearHorizontalLine(int row, GridGenerator gridGen)
+    {
+        List<Vector2Int> clearedPositions = new List<Vector2Int>();
+        
+        for (int col = 0; col < gridGen.columns; col++)
+        {
+            Vector2Int gridPos = ArrayIndicesToGridPosition(col, row, gridGen);
+            if (occupiedGridPositions.Contains(gridPos))
+            {
+                occupiedGridPositions.Remove(gridPos);
+                clearedPositions.Add(gridPos);
+            }
+        }
+        
+        return clearedPositions;
+    }
+    
+    private static List<Vector2Int> ClearVerticalLine(int col, GridGenerator gridGen)
+    {
+        List<Vector2Int> clearedPositions = new List<Vector2Int>();
+        
+        for (int row = 0; row < gridGen.rows; row++)
+        {
+            Vector2Int gridPos = ArrayIndicesToGridPosition(col, row, gridGen);
+            if (occupiedGridPositions.Contains(gridPos))
+            {
+                occupiedGridPositions.Remove(gridPos);
+                clearedPositions.Add(gridPos);
+            }
+        }
+        
+        return clearedPositions;
+    }
+    
+    // Helper method to convert array indices to grid position
+    private static Vector2Int ArrayIndicesToGridPosition(int col, int row, GridGenerator gridGen)
+    {
+        Vector3 gridStartPos = gridGen.transform.position;
+        Vector3 worldPos = new Vector3(
+            gridStartPos.x + col * (gridGen.tileSize.x + gridGen.spacing),
+            gridStartPos.y - row * (gridGen.tileSize.y + gridGen.spacing),
+            0
+        );
+        
+        return new Vector2Int(
+            Mathf.RoundToInt(worldPos.x / 1f), // Assuming gridSize is 1f
+            Mathf.RoundToInt(worldPos.y / 1f)
+        );
+    }
+    
+    // Method to handle shape destruction when their tiles are cleared
+    public static int DestroyShapesAtPositions(List<Vector2Int> clearedPositions)
+    {
+        Drag2D[] allShapes = FindObjectsByType<Drag2D>(FindObjectsSortMode.None);
+        int affectedShapes = 0;
+        
+        foreach (Drag2D shape in allShapes)
+        {
+            if (!shape.IsPlaced()) continue;
+            
+            Vector2Int shapeGridPos = WorldToGridPositionStatic(shape.transform.position, shape.gridSize);
+            
+            // Check if any part of this shape was cleared
+            bool hasAffectedTiles = false;
+            foreach (Vector2Int shapeOffset in shape.shapeOffsets)
+            {
+                Vector2Int tilePos = shapeGridPos + shapeOffset;
+                if (clearedPositions.Contains(tilePos))
+                {
+                    hasAffectedTiles = true;
+                    break;
+                }
+            }
+            
+            if (hasAffectedTiles)
+            {
+                // Remove only the cleared tiles from this shape's offsets
+                RemoveClearedTilesFromShape(shape, shapeGridPos, clearedPositions);
+                affectedShapes++;
+            }
+        }
+        
+        return affectedShapes;
+    }
+    
+    // Helper method to remove only the cleared tiles from a shape
+    private static void RemoveClearedTilesFromShape(Drag2D shape, Vector2Int shapeGridPos, List<Vector2Int> clearedPositions)
+    {
+        List<Vector2Int> remainingOffsets = new List<Vector2Int>();
+        
+        // Keep only the tiles that weren't cleared
+        foreach (Vector2Int shapeOffset in shape.shapeOffsets)
+        {
+            Vector2Int tilePos = shapeGridPos + shapeOffset;
+            if (!clearedPositions.Contains(tilePos))
+            {
+                remainingOffsets.Add(shapeOffset);
+            }
+        }
+        
+        // If no tiles remain, destroy the entire shape
+        if (remainingOffsets.Count == 0)
+        {
+            Debug.Log($"Destroying shape {shape.gameObject.name} - all tiles were cleared");
+            Destroy(shape.gameObject);
+        }
+        else if (remainingOffsets.Count < shape.shapeOffsets.Count)
+        {
+            // Some tiles were cleared - we need to create a new visual representation
+            // For now, let's destroy the whole shape and create a new one with remaining tiles
+            Vector3 currentPosition = shape.transform.position;
+            
+            // Create a new shape with only the remaining tiles
+            CreatePartialShape(remainingOffsets, currentPosition, shape.gameObject.name + "_Partial", shape);
+            
+            Debug.Log($"Shape {shape.gameObject.name} split - {shape.shapeOffsets.Count - remainingOffsets.Count} tiles removed, {remainingOffsets.Count} tiles remain");
+            
+            // Destroy the original shape
+            Destroy(shape.gameObject);
+        }
+    }
+    
+    // Helper method to create a new shape with specific offsets
+    private static void CreatePartialShape(List<Vector2Int> offsets, Vector3 position, string name, Drag2D originalShape)
+    {
+        // Create new GameObject
+        GameObject newShapeObj = new GameObject(name);
+        newShapeObj.transform.position = position;
+        
+        // Add Drag2D component and configure it
+        Drag2D newShape = newShapeObj.AddComponent<Drag2D>();
+        newShape.shapeOffsets = new List<Vector2Int>(offsets);
+        newShape.gridSize = originalShape.gridSize;
+        newShape.placedColor = originalShape.placedColor;
+        newShape.originalColor = originalShape.originalColor;
+        
+        // Copy original tile colors
+        if (originalShape.originalTileColors != null)
+        {
+            newShape.originalTileColors = new Color[originalShape.originalTileColors.Length];
+            for (int i = 0; i < originalShape.originalTileColors.Length; i++)
+            {
+                newShape.originalTileColors[i] = originalShape.originalTileColors[i];
+            }
+        }
+        
+        // Mark as placed and add to grid
+        newShape.isPlaced = true;
+        Vector2Int gridPos = WorldToGridPositionStatic(position, newShape.gridSize);
+        
+        // Add to occupied positions
+        foreach (Vector2Int offset in offsets)
+        {
+            Vector2Int pos = gridPos + offset;
+            occupiedGridPositions.Add(pos);
+        }
+        
+        // For visual representation, copy the original tiles that remain
+        CopyOriginalTiles(originalShape, newShape, offsets);
+    }
+    
+    // Copy original tiles that should remain in the partial shape
+    private static void CopyOriginalTiles(Drag2D originalShape, Drag2D newShape, List<Vector2Int> remainingOffsets)
+    {
+        // Get all child objects from the original shape
+        Transform[] originalChildren = new Transform[originalShape.transform.childCount];
+        for (int i = 0; i < originalShape.transform.childCount; i++)
+        {
+            originalChildren[i] = originalShape.transform.GetChild(i);
+        }
+        
+        // Copy tiles that correspond to remaining offsets
+        for (int i = 0; i < remainingOffsets.Count && i < originalChildren.Length; i++)
+        {
+            if (originalChildren[i] != null)
+            {
+                // Create a copy of the original tile
+                GameObject newTile = UnityEngine.Object.Instantiate(originalChildren[i].gameObject, newShape.transform);
+                newTile.transform.localPosition = new Vector3(
+                    remainingOffsets[i].x * newShape.gridSize, 
+                    remainingOffsets[i].y * newShape.gridSize, 
+                    0
+                );
+                
+                // Restore the original color from before placement
+                SpriteRenderer renderer = newTile.GetComponent<SpriteRenderer>();
+                if (renderer != null && originalShape.originalTileColors != null && i < originalShape.originalTileColors.Length)
+                {
+                    renderer.color = originalShape.originalTileColors[i];
+                }
+            }
+        }
+        
+        // If we couldn't copy enough tiles, create simple ones for the remaining
+        if (remainingOffsets.Count > originalChildren.Length)
+        {
+            for (int i = originalChildren.Length; i < remainingOffsets.Count; i++)
+            {
+                CreateSimpleTile(newShape, remainingOffsets[i], newShape.placedColor);
+            }
+        }
+        
+        // Refresh tile renderers
+        newShape.RefreshTileRenderers();
+    }
+    
+    // Create a simple tile for missing tiles
+    private static void CreateSimpleTile(Drag2D shape, Vector2Int offset, Color color)
+    {
+        GameObject tile = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        tile.transform.SetParent(shape.transform);
+        tile.transform.localPosition = new Vector3(offset.x * shape.gridSize, offset.y * shape.gridSize, 0);
+        tile.transform.localScale = Vector3.one * shape.gridSize;
+        
+        // Remove collider as we don't need it for placed tiles
+        Collider col = tile.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        
+        // Set color and material properties
+        Renderer renderer = tile.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            // Create a new material instance to avoid affecting other objects
+            Material newMaterial = new Material(renderer.material);
+            newMaterial.color = color;
+            renderer.material = newMaterial;
+        }
     }
     
     // Method to reset all shapes in the scene
@@ -529,7 +706,6 @@ public class Drag2D : MonoBehaviour
             shape.ResetShape();
         }
         ClearAllOccupiedPositions();
-        ResetScore();
     }
     
     // Method to get occupied positions (useful for checking win conditions)
@@ -551,17 +727,61 @@ public class Drag2D : MonoBehaviour
         return count;
     }
     
-    // Method to get current score
-    public static int GetCurrentScore()
+    // Public method to manually trigger line clearing (useful for testing or special abilities)
+    public static int TriggerLineClear()
     {
-        return totalScore;
+        List<Vector2Int> clearedPositions = CheckAndClearLines();
+        if (clearedPositions.Count > 0)
+        {
+            int destroyedShapes = DestroyShapesAtPositions(clearedPositions);
+            
+            // Invoke events
+            OnLinesCleared?.Invoke(clearedPositions);
+            OnShapesDestroyed?.Invoke(destroyedShapes);
+            
+            Debug.Log($"Manual line clear: Cleared {clearedPositions.Count} tiles and destroyed {destroyedShapes} shapes!");
+            return clearedPositions.Count;
+        }
+        return 0;
     }
     
-    // Method to reset score
-    public static void ResetScore()
+    // Method to get info about potential line clears without actually clearing them
+    public static LineClearInfo GetLineClearInfo()
     {
-        totalScore = 0;
-        OnScoreChanged?.Invoke(totalScore);
+        GridGenerator gridGen = FindFirstObjectByType<GridGenerator>();
+        if (gridGen == null) return new LineClearInfo();
+        
+        LineClearInfo info = new LineClearInfo();
+        
+        // Check horizontal lines
+        for (int row = 0; row < gridGen.rows; row++)
+        {
+            if (IsHorizontalLineComplete(row, gridGen))
+            {
+                info.completedHorizontalLines.Add(row);
+            }
+        }
+        
+        // Check vertical lines
+        for (int col = 0; col < gridGen.columns; col++)
+        {
+            if (IsVerticalLineComplete(col, gridGen))
+            {
+                info.completedVerticalLines.Add(col);
+            }
+        }
+        
+        return info;
+    }
+
+    [System.Serializable]
+    public class LineClearInfo
+    {
+        public List<int> completedHorizontalLines = new List<int>();
+        public List<int> completedVerticalLines = new List<int>();
+        
+        public int TotalCompletedLines => completedHorizontalLines.Count + completedVerticalLines.Count;
+        public bool HasCompletedLines => TotalCompletedLines > 0;
     }
 
     // Fallback methods for OnMouse events (in case they work with your setup)
