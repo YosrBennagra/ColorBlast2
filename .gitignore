@@ -9,6 +9,7 @@ Obj/
 Build/
 Builds/
 UserSettings/
+Logs/
 
 # Visual Studio cache directory
 .vs/
