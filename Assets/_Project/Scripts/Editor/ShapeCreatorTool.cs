@@ -5,9 +5,31 @@ using System.Collections.Generic;
 public class ShapeCreatorTool : EditorWindow
 {
     private GameObject tilePrefab;
-    private float tileSize = 1f;
+    private float gridSize = 1f;
+    private Material tileMaterial;
     
-    [MenuItem("Tools/Puzzle Game/Shape Creator")]
+    // Shape presets
+    private static readonly List<Vector2Int> SingleSquare = new List<Vector2Int> { new Vector2Int(0, 0) };
+    private static readonly List<Vector2Int> LShape = new List<Vector2Int> { 
+        new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(2, 0), new Vector2Int(0, 1) 
+    };
+    private static readonly List<Vector2Int> TShape = new List<Vector2Int> { 
+        new Vector2Int(0, 0), new Vector2Int(-1, 0), new Vector2Int(1, 0), new Vector2Int(0, 1) 
+    };
+    private static readonly List<Vector2Int> IShape = new List<Vector2Int> { 
+        new Vector2Int(0, 0), new Vector2Int(0, 1), new Vector2Int(0, 2), new Vector2Int(0, 3) 
+    };
+    private static readonly List<Vector2Int> OShape = new List<Vector2Int> { 
+        new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(0, 1), new Vector2Int(1, 1) 
+    };
+    private static readonly List<Vector2Int> ZShape = new List<Vector2Int> { 
+        new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(1, 1), new Vector2Int(2, 1) 
+    };
+    private static readonly List<Vector2Int> SShape = new List<Vector2Int> { 
+        new Vector2Int(1, 0), new Vector2Int(2, 0), new Vector2Int(0, 1), new Vector2Int(1, 1) 
+    };
+    
+    [MenuItem("Tools/ColorBlast2/Shape Creator")]
     public static void ShowWindow()
     {
         GetWindow<ShapeCreatorTool>("Shape Creator");
@@ -15,89 +37,167 @@ public class ShapeCreatorTool : EditorWindow
     
     void OnGUI()
     {
-        GUILayout.Label("Quick Shape Creator", EditorStyles.boldLabel);
+        GUILayout.Label("ColorBlast2 Shape Creator", EditorStyles.boldLabel);
+        GUILayout.Space(5);
         
-        tilePrefab = (GameObject)EditorGUILayout.ObjectField("Tile Prefab", tilePrefab, typeof(GameObject), false);
-        tileSize = EditorGUILayout.FloatField("Tile Size", tileSize);
-        
+        EditorGUILayout.HelpBox("This tool creates shape prefabs for the new ColorBlast2 architecture.", MessageType.Info);
         GUILayout.Space(10);
         
+        tilePrefab = (GameObject)EditorGUILayout.ObjectField("Tile Prefab", tilePrefab, typeof(GameObject), false);
+        tileMaterial = (Material)EditorGUILayout.ObjectField("Tile Material", tileMaterial, typeof(Material), false);
+        gridSize = EditorGUILayout.FloatField("Grid Size", gridSize);
+        
+        GUILayout.Space(10);
+        GUILayout.Label("Quick Shape Creation:", EditorStyles.boldLabel);
+        
         if (GUILayout.Button("Create Single Square"))
-            CreateShape("Single Square", ShapePresets.SingleSquare, Color.red);
+            CreateShape("Single_Square", SingleSquare);
             
         if (GUILayout.Button("Create L-Shape"))
-            CreateShape("L-Shape", ShapePresets.LShape, Color.blue);
+            CreateShape("L_Shape", LShape);
             
         if (GUILayout.Button("Create T-Shape"))
-            CreateShape("T-Shape", ShapePresets.TShape, Color.green);
+            CreateShape("T_Shape", TShape);
             
         if (GUILayout.Button("Create I-Shape"))
-            CreateShape("I-Shape", ShapePresets.IShape, Color.yellow);
+            CreateShape("I_Shape", IShape);
             
         if (GUILayout.Button("Create O-Shape"))
-            CreateShape("O-Shape", ShapePresets.OShape, Color.cyan);
+            CreateShape("O_Shape", OShape);
             
         if (GUILayout.Button("Create Z-Shape"))
-            CreateShape("Z-Shape", ShapePresets.ZShape, Color.magenta);
+            CreateShape("Z_Shape", ZShape);
             
         if (GUILayout.Button("Create S-Shape"))
-            CreateShape("S-Shape", ShapePresets.SShape, Color.white);
+            CreateShape("S_Shape", SShape);
     }
     
-    void CreateShape(string shapeName, List<Vector2Int> offsets, Color color)
+    void CreateShape(string shapeName, List<Vector2Int> offsets)
     {
-        if (tilePrefab == null)
-        {
-            Debug.LogError("Please assign a tile prefab first!");
-            return;
-        }
-        
         // Create main shape GameObject
         GameObject shapeObject = new GameObject(shapeName);
         
-        // Add ShapeCreator component
-        ShapeCreator creator = shapeObject.AddComponent<ShapeCreator>();
+        // Add required components
+        Core.Shape shapeComponent = shapeObject.AddComponent<Core.Shape>();
+        Gameplay.DragHandler dragHandler = shapeObject.AddComponent<Gameplay.DragHandler>();
         
-        // Create ShapeData asset
-        ShapeData shapeData = ScriptableObject.CreateInstance<ShapeData>();
-        shapeData.shapeName = shapeName;
-        shapeData.tileOffsets = new List<Vector2Int>(offsets);
-        shapeData.shapeColor = color;
+        // Add a BoxCollider2D for mouse detection
+        BoxCollider2D collider = shapeObject.AddComponent<BoxCollider2D>();
         
-        // Create the folder if it doesn't exist
-        if (!AssetDatabase.IsValidFolder("Assets/_Project/Shapes"))
+        // Configure the Shape component
+        shapeComponent.SetShapeOffsets(offsets);
+        
+        // Create visual tiles if tile prefab is provided
+        if (tilePrefab != null)
         {
-            AssetDatabase.CreateFolder("Assets/_Project", "Shapes");
+            CreateVisualTiles(shapeObject, offsets);
+            
+            // Calculate collider bounds based on tiles
+            CalculateColliderBounds(collider, offsets);
+        }
+        else
+        {
+            // Create simple visual representation with sprites
+            CreateSimpleVisualTiles(shapeObject, offsets);
+            CalculateColliderBounds(collider, offsets);
         }
         
-        // Save the ScriptableObject
-        string assetPath = $"Assets/_Project/Shapes/{shapeName}.asset";
-        AssetDatabase.CreateAsset(shapeData, assetPath);
+        // Create prefab folder if it doesn't exist
+        if (!AssetDatabase.IsValidFolder("Assets/_Project/Prefabs"))
+        {
+            AssetDatabase.CreateFolder("Assets/_Project", "Prefabs");
+        }
+        if (!AssetDatabase.IsValidFolder("Assets/_Project/Prefabs/Shapes"))
+        {
+            AssetDatabase.CreateFolder("Assets/_Project/Prefabs", "Shapes");
+        }
         
-        // Use SerializedObject to set private fields properly
-        SerializedObject serializedCreator = new SerializedObject(creator);
+        // Save as prefab
+        string prefabPath = $"Assets/_Project/Prefabs/Shapes/{shapeName}.prefab";
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(shapeObject, prefabPath);
         
-        SerializedProperty shapeDataProp = serializedCreator.FindProperty("shapeData");
-        if (shapeDataProp != null)
-            shapeDataProp.objectReferenceValue = shapeData;
-            
-        SerializedProperty tilePrefabProp = serializedCreator.FindProperty("tilePrefab");
-        if (tilePrefabProp != null)
-            tilePrefabProp.objectReferenceValue = tilePrefab;
-            
-        SerializedProperty tileSizeProp = serializedCreator.FindProperty("tileSize");
-        if (tileSizeProp != null)
-            tileSizeProp.floatValue = tileSize;
-            
-        serializedCreator.ApplyModifiedProperties();
+        // Clean up the scene object
+        DestroyImmediate(shapeObject);
         
-        // Refresh the shape
-        creator.RefreshShape();
-        
-        // Select the created object
-        Selection.activeGameObject = shapeObject;
+        // Select the created prefab
+        Selection.activeObject = prefab;
         
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
+        
+        Debug.Log($"Created shape prefab: {shapeName} with {offsets.Count} tiles");
+    }
+    
+    void CreateVisualTiles(GameObject parent, List<Vector2Int> offsets)
+    {
+        foreach (Vector2Int offset in offsets)
+        {
+            GameObject tile = PrefabUtility.InstantiatePrefab(tilePrefab) as GameObject;
+            tile.transform.SetParent(parent.transform);
+            tile.transform.localPosition = new Vector3(offset.x * gridSize, offset.y * gridSize, 0);
+            tile.name = $"Tile_{offset.x}_{offset.y}";
+            
+            // Apply material if provided
+            if (tileMaterial != null)
+            {
+                Renderer renderer = tile.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    renderer.material = tileMaterial;
+                }
+            }
+        }
+    }
+    
+    void CreateSimpleVisualTiles(GameObject parent, List<Vector2Int> offsets)
+    {
+        foreach (Vector2Int offset in offsets)
+        {
+            GameObject tile = new GameObject($"Tile_{offset.x}_{offset.y}");
+            tile.transform.SetParent(parent.transform);
+            tile.transform.localPosition = new Vector3(offset.x * gridSize, offset.y * gridSize, 0);
+            
+            // Add SpriteRenderer with a simple square sprite
+            SpriteRenderer spriteRenderer = tile.AddComponent<SpriteRenderer>();
+            
+            // Create a simple square texture
+            Texture2D texture = new Texture2D(64, 64);
+            Color[] pixels = new Color[64 * 64];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = Color.white;
+            texture.SetPixels(pixels);
+            texture.Apply();
+            
+            // Create sprite from texture
+            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 64);
+            spriteRenderer.sprite = sprite;
+            
+            if (tileMaterial != null)
+            {
+                spriteRenderer.material = tileMaterial;
+            }
+        }
+    }
+    
+    void CalculateColliderBounds(BoxCollider2D collider, List<Vector2Int> offsets)
+    {
+        if (offsets.Count == 0) return;
+        
+        float minX = float.MaxValue, maxX = float.MinValue;
+        float minY = float.MaxValue, maxY = float.MinValue;
+        
+        foreach (Vector2Int offset in offsets)
+        {
+            float x = offset.x * gridSize;
+            float y = offset.y * gridSize;
+            
+            minX = Mathf.Min(minX, x - gridSize * 0.5f);
+            maxX = Mathf.Max(maxX, x + gridSize * 0.5f);
+            minY = Mathf.Min(minY, y - gridSize * 0.5f);
+            maxY = Mathf.Max(maxY, y + gridSize * 0.5f);
+        }
+        
+        collider.size = new Vector2(maxX - minX, maxY - minY);
+        collider.offset = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
     }
 }

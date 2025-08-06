@@ -96,9 +96,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7326227165679958636}
-  - component: {fileID: 2571385511906228862}
-  - component: {fileID: 7725433819651206896}
   - component: {fileID: 7225287356168483885}
+  - component: {fileID: 6142546907008569632}
+  - component: {fileID: 146387372238547070}
   m_Layer: 0
   m_Name: L-Shape
   m_TagString: Untagged
@@ -125,39 +125,6 @@ Transform:
   - {fileID: 4452034970187507642}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2571385511906228862
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1149767235466809251}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2e633283f4db26240878b46ded236a7b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  shapeData: {fileID: 11400000, guid: 6d9262747790a8c4dbea046ed974be56, type: 2}
-  tilePrefab: {fileID: 4028399909290857628, guid: 38f4d351af64b154c90e80e3998acca1, type: 3}
-  tileSize: 1
---- !u!114 &7725433819651206896
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1149767235466809251}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5abdbc1a17ba9864c9f619b66b3bb13b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  shapeOffsets:
-  - {x: 0, y: 0}
-  - {x: 0, y: 1}
-  - {x: 0, y: 2}
-  - {x: 1, y: 0}
-  gridSize: 1
 --- !u!61 &7225287356168483885
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -204,6 +171,40 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 2, y: 3}
   m_EdgeRadius: 0
+--- !u!114 &6142546907008569632
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1149767235466809251}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a37b6145efb2024e91eb3fcd52e946e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shapeOffsets:
+  - {x: 0, y: 0}
+  - {x: 0, y: 1}
+  - {x: 0, y: 2}
+  - {x: 1, y: 0}
+  gridSize: 1
+--- !u!114 &146387372238547070
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1149767235466809251}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 218db23555d7be84a9fc4843859fbc68, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  returnToSpawnOnInvalidPlacement: 1
+  returnAnimationDuration: 0.3
+  useReturnAnimation: 1
+  showInvalidPlacementFeedback: 1
 --- !u!1 &1324489507970927001
 GameObject:
   m_ObjectHideFlags: 0
