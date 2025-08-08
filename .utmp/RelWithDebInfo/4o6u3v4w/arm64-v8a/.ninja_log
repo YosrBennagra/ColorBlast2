@@ -1,0 +1,12 @@
+# ninja log v5
+39	220	7762819335753577	FramePacing/CMakeFiles/swappywrapper.dir/UnitySwappyWrapper.cpp.o	9b24663955de483c
+222	321	7762819336678890	E:/QuizApp/ColorBlast2/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/4o6u3v4w/obj/arm64-v8a/libswappywrapper.so	b6e892fd413af5f
+21	700	7762819340523497	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	914115f57067dbce
+12	714	7762819340667217	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	13bd26aea21857aa
+5	723	7762819340765067	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	bf854693f6f9fbbf
+24	735	7762819340860248	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	413f004c816baf64
+0	774	7762819341253719	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	78540748fc1c29f5
+29	854	7762819342075987	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	e19e139381ebca8e
+16	898	7762819342495523	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	966860029b4980da
+8	970	7762819343207470	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	30e0cb7ffa8f5f37
+970	1029	7762819343833390	E:/QuizApp/ColorBlast2/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/4o6u3v4w/obj/arm64-v8a/libgame.so	54b18d38474133a8

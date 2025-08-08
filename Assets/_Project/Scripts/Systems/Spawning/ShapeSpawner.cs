@@ -9,6 +9,10 @@ public class ShapeSpawner : MonoBehaviour
     [SerializeField] private Transform[] spawnPoints = new Transform[3]; // 3 spawn positions
     [SerializeField] private bool autoSpawnOnStart = true;
     
+    [Header("Sprite Theme Settings")]
+    [SerializeField] private ShapeSpriteManager spriteManager; // Reference to sprite manager
+    [SerializeField] private bool useRandomThemes = true; // Whether to apply random themes to spawned shapes
+    
     [Header("Spawn Effects")]
     [SerializeField] private float spawnEffectDuration = 0.3f;
     [SerializeField] private float minSpawnScale = 0.1f;
@@ -122,14 +126,22 @@ public class ShapeSpawner : MonoBehaviour
         }
         
         // Spawn 3 new shapes
+        List<GameObject> newlySpawnedShapes = new List<GameObject>();
         for (int i = 0; i < 3; i++)
         {
             if (spawnPoints[i] != null)
             {
                 GameObject newShape = SpawnRandomShape(i);
                 currentShapes[i] = newShape;
+                if (newShape != null)
+                {
+                    newlySpawnedShapes.Add(newShape);
+                }
             }
         }
+        
+        // Apply themes to all spawned shapes
+        ApplyThemesToShapes(newlySpawnedShapes.ToArray());
         
         Debug.Log("Spawned 3 new shapes!");
     }
@@ -274,6 +286,46 @@ public class ShapeSpawner : MonoBehaviour
         else
         {
             Debug.LogError("Must provide exactly 3 spawn points!");
+        }
+    }
+    
+    /// <summary>
+    /// Apply sprite themes to the spawned shapes
+    /// </summary>
+    private void ApplyThemesToShapes(GameObject[] shapes)
+    {
+        if (!useRandomThemes) return;
+        if (shapes == null || shapes.Length == 0) return;
+        
+        // Try to use the assigned sprite manager first
+        if (spriteManager != null)
+        {
+            spriteManager.ApplyRandomThemes(shapes);
+        }
+        // Fallback to singleton instance
+        else if (ShapeSpriteManager.Instance != null)
+        {
+            ShapeSpriteManager.Instance.ApplyRandomThemes(shapes);
+        }
+        else
+        {
+            Debug.LogWarning("No ShapeSpriteManager available! Shapes will use default sprites.");
+        }
+    }
+    
+    /// <summary>
+    /// Apply a specific theme to a single shape
+    /// </summary>
+    public void ApplyThemeToShape(GameObject shape, string themeName)
+    {
+        ShapeSpriteManager manager = spriteManager ?? ShapeSpriteManager.Instance;
+        if (manager != null)
+        {
+            var theme = manager.GetThemeByName(themeName);
+            if (theme != null)
+            {
+                manager.ApplyThemeToShape(shape, theme);
+            }
         }
     }
     
