@@ -11,7 +11,7 @@ namespace Systems.UI
     public class SimpleUIIntegration : MonoBehaviour
     {
         [Header("System References")]
-        [SerializeField] private SimpleGameUI gameUI;
+        [SerializeField] private GameUI gameUI;
         
         [Header("Scoring Settings")]
         [SerializeField] private int pointsPerLine = 100;
@@ -25,19 +25,13 @@ namespace Systems.UI
         {
             // Find components if not assigned
             if (gameUI == null)
-                gameUI = FindFirstObjectByType<SimpleGameUI>();
+                gameUI = FindFirstObjectByType<GameUI>();
             
             SetupEventHandlers();
         }
         
         private void SetupEventHandlers()
         {
-            if (gameUI != null)
-            {
-                // UI event handlers
-                gameUI.OnSettings += HandleSettings;
-            }
-            
             // Game system event handlers - subscribe to line clearing
             if (Services.IsRegistered<Gameplay.LineClearSystem>())
             {
@@ -48,11 +42,6 @@ namespace Systems.UI
         private void OnDestroy()
         {
             // Clean up event handlers
-            if (gameUI != null)
-            {
-                gameUI.OnSettings -= HandleSettings;
-            }
-            
             Gameplay.LineClearSystem.OnLinesCleared -= HandleLinesCleared;
         }
         
@@ -90,13 +79,6 @@ namespace Systems.UI
             // Simple shape placement bonus
             totalScore += shapeBonus;
             gameUI.UpdateScore(totalScore);
-        }
-        
-        private void HandleSettings()
-        {
-            Debug.Log("Settings requested - implement scene transition here");
-            // This is where you would load the settings scene
-            // For now, just log
         }
         
         // Public methods for external systems

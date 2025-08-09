@@ -11,7 +11,52 @@ public class ShapeCreatorTool : EditorWindow
     // Shape presets
     private static readonly List<Vector2Int> SingleSquare = new List<Vector2Int> { new Vector2Int(0, 0) };
     private static readonly List<Vector2Int> LShape = new List<Vector2Int> {
-        new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(2, 0), new Vector2Int(0, 1)
+        new Vector2Int(0, 0),
+        new Vector2Int(0, 1),
+        new Vector2Int(0, 2),
+        new Vector2Int(1, 0)
+    };
+    private static readonly List<Vector2Int> LShapePM180 = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(-1, 0),
+        new Vector2Int(0, -2),
+        new Vector2Int(0, -1)
+    };
+    private static readonly List<Vector2Int> LShapeM90 = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(-1, 0),
+        new Vector2Int(-2, 0),
+        new Vector2Int(0, 1)
+    };
+    private static readonly List<Vector2Int> LShapeP90 = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 0),
+        new Vector2Int(2, 0),
+        new Vector2Int(0, -1)
+    };
+    private static readonly List<Vector2Int> RLShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(0, 1),
+        new Vector2Int(0, 2),
+        new Vector2Int(-1, 0)
+    };
+    private static readonly List<Vector2Int> RLShapePM180 = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 0),
+        new Vector2Int(0, -2),
+        new Vector2Int(0, -1)
+    };
+    private static readonly List<Vector2Int> RLShapeM90 = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(-1, 0),
+        new Vector2Int(-2, 0),
+        new Vector2Int(0, -1)
+    };
+    private static readonly List<Vector2Int> RLShapeP90 = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 0),
+        new Vector2Int(2, 0),
+        new Vector2Int(0, 1)
     };
     private static readonly List<Vector2Int> TShape = new List<Vector2Int> {
         new Vector2Int(0, 0),
@@ -38,7 +83,52 @@ public class ShapeCreatorTool : EditorWindow
         new Vector2Int(-1, -1)
     };
     private static readonly List<Vector2Int> IShape = new List<Vector2Int> {
-        new Vector2Int(0, 0), new Vector2Int(0, 1), new Vector2Int(0, 2), new Vector2Int(0, 3)
+        new Vector2Int(0, 0)
+    };
+    private static readonly List<Vector2Int> IIShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(0, 1)
+    };
+    private static readonly List<Vector2Int> IIIShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(0, 1),
+        new Vector2Int(0, 2)
+    };
+    private static readonly List<Vector2Int> IIIIShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(0, 1),
+        new Vector2Int(0, 2),
+        new Vector2Int(0, 3)
+    };
+    private static readonly List<Vector2Int> IIIIIShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(0, 1),
+        new Vector2Int(0, 2),
+        new Vector2Int(0, 3),
+        new Vector2Int(0, 4)
+    };
+
+    private static readonly List<Vector2Int> RIIShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 0)
+    };
+    private static readonly List<Vector2Int> RIIIShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 0),
+        new Vector2Int(2, 0)
+    };
+    private static readonly List<Vector2Int> RIIIIShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 0),
+        new Vector2Int(2, 0),
+        new Vector2Int(3, 0)
+    };
+    private static readonly List<Vector2Int> RIIIIIShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 0),
+        new Vector2Int(2, 0),
+        new Vector2Int(3, 0),
+        new Vector2Int(4, 0)
     };
     private static readonly List<Vector2Int> OShape = new List<Vector2Int> {
         new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(0, 1), new Vector2Int(1, 1)
@@ -116,6 +206,21 @@ public class ShapeCreatorTool : EditorWindow
 
         if (GUILayout.Button("Create L-Shape"))
             CreateShape("L_Shape", LShape);
+        if (GUILayout.Button("Create L-ShapePM180"))
+            CreateShape("L_ShapePM180", LShapePM180);
+        if (GUILayout.Button("Create L-ShapeP90"))
+            CreateShape("L_ShapeP90", LShapeP90);
+        if (GUILayout.Button("Create L-ShapeM90"))
+            CreateShape("L_ShapeM90", LShapeM90);
+
+        if (GUILayout.Button("Create RL-Shape"))
+            CreateShape("RL_Shape", RLShape);
+        if (GUILayout.Button("Create RL-ShapePM180"))
+            CreateShape("RL_ShapePM180", RLShapePM180);
+        if (GUILayout.Button("Create RL-ShapeP90"))
+            CreateShape("RL_ShapeP90", RLShapeP90);
+        if (GUILayout.Button("Create L-ShapeM90"))
+            CreateShape("RL_ShapeM90", RLShapeM90);
 
         if (GUILayout.Button("Create T-Shape"))
             CreateShape("T_Shape", TShape);
@@ -128,6 +233,24 @@ public class ShapeCreatorTool : EditorWindow
 
         if (GUILayout.Button("Create I-Shape"))
             CreateShape("I_Shape", IShape);
+        if (GUILayout.Button("Create II-Shape"))
+            CreateShape("II_Shape", IIShape);
+        if (GUILayout.Button("Create III-Shape"))
+            CreateShape("III_Shape", IIIShape);
+        if (GUILayout.Button("Create IIII-Shape"))
+            CreateShape("IIII_Shape", IIIIShape);
+        if (GUILayout.Button("Create IIIII-Shape"))
+            CreateShape("IIIII_Shape", IIIIIShape);
+
+        if (GUILayout.Button("Create RII-Shape"))
+            CreateShape("RII_Shape", RIIShape);
+        if (GUILayout.Button("Create RIII-Shape"))
+            CreateShape("RIII_Shape", RIIIShape);
+        if (GUILayout.Button("Create RIIII-Shape"))
+            CreateShape("RIIII_Shape", RIIIIShape);
+        if (GUILayout.Button("Create RIIIII-Shape"))
+            CreateShape("RIIIII_Shape", RIIIIIShape);
+        
 
         if (GUILayout.Button("Create O-Shape"))
             CreateShape("O_Shape", OShape);

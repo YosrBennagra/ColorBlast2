@@ -151,7 +151,7 @@ Create the following UI elements as children of the Canvas:
 6. Size: 80x80 for mobile touch targets
 
 ### Step 4: Add Simple UI Manager
-1. Add `SimpleGameUI` component to the Canvas
+1. Add `GameUI` component to the Canvas
 2. Drag the UI elements to their respective fields:
    - Score Text → scoreText field
    - High Score Text → highScoreText field
@@ -159,7 +159,7 @@ Create the following UI elements as children of the Canvas:
 
 ### Step 5: Add Simple UI Integration
 1. Add `SimpleUIIntegration` component to the Canvas
-2. The Game UI field should auto-populate with the SimpleGameUI component
+2. The Game UI field should auto-populate with the GameUI component
 3. Configure scoring settings:
    - Points Per Line: 100
    - Bonus Per Level: 50
@@ -546,7 +546,7 @@ After setup, verify:
 - [ ] GridManager GameObject exists and is active
 - [ ] GridManager has Gameplay.GridManager component
 - [ ] GridManager is positioned where you want the grid
-- [ ] Canvas exists with either SimpleGameUI or GameUIManager component
+- [ ] Canvas exists with GameUI component
 - [ ] UI components are properly assigned (score text, buttons, etc.)
 - [ ] SimpleUIIntegration or UIIntegration component added to Canvas
 - [ ] Canvas Scaler configured for mobile (1080x1920, Match 0.5)
@@ -563,7 +563,7 @@ After setup, verify:
 - [ ] GameManager appears in DontDestroyOnLoad during play
 - [ ] UI scales properly on different screen sizes
 - [ ] Score and high score display correctly
-- [ ] Settings button responds to clicks (for SimpleGameUI)
+- [ ] Score text displays correctly (for GameUI)
 - [ ] UI elements are positioned correctly and readable
 - [ ] Touch targets are appropriately sized for mobile
 - [ ] ShapeSpawner spawns 3 shapes on start (if enabled)
