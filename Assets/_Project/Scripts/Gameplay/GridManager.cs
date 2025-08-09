@@ -6,469 +6,384 @@ using ColorBlast.Core.Interfaces;
 namespace Gameplay
 {
     /// <summary>
-    /// Simple, reliable grid manager for ColorBlast2
-    /// Handles grid positioning, visualization, and state management
+    /// Lightweight, pixel-art friendly grid manager.
+    /// - Single uniform cell size
+    /// - No runtime line renderers or background objects
+    /// - Pixel-perfect snapping via Pixels Per Unit (PPU)
+    /// - Simple editor gizmo preview only
     /// </summary>
     public class GridManager : MonoBehaviour, IGridManager
     {
-        [Header("Grid Configuration")]
+        [Header("Grid Size")]
         [SerializeField] private int gridWidth = 8;
         [SerializeField] private int gridHeight = 10;
-        [SerializeField] private float cellSize = 0.8f;
-        
-        [Header("Advanced Cell Sizing")]
-        [SerializeField] private bool useUniformCellSize = true;
-        [SerializeField] private float cellWidth = 0.8f;
-        [SerializeField] private float cellHeight = 0.8f;
-        
-        [Header("Cell Spacing")]
-        [SerializeField] private float cellSpacing = 0.0f;
-        [SerializeField] private bool useUniformSpacing = true;
-        [SerializeField] private float cellSpacingX = 0.0f;
-        [SerializeField] private float cellSpacingY = 0.0f;
-        
-        [Header("Visual Settings")]
-        [SerializeField] private bool showVisualGrid = false; // Changed default to false
-        [SerializeField] private GameObject tilePrefab;
-        [SerializeField] private Material gridMaterial;
-        [SerializeField] private Color gridColor = new Color(1f, 1f, 1f, 0.05f);
-        
-        // Grid state
+
+        [Header("Pixel Art Settings")]
+        [Tooltip("Pixels Per Unit used by your sprites (e.g. 16, 32, 100). Must match your art/Pixel Perfect Camera.")]
+        [SerializeField] private int pixelsPerUnit = 16;
+        [Tooltip("Cell size in pixels (e.g. 16 for a 16x16 tile).")]
+        [SerializeField] private int cellSizePixels = 16;
+        [Tooltip("Snap positions to the nearest pixel for crisp rendering.")]
+        [SerializeField] private bool pixelSnap = true;
+
+        [Header("Gizmo Preview (Editor Only)")]
+        [SerializeField] private bool showGridGizmos = true;
+        [SerializeField] private Color gridLineColor = new Color(1f, 1f, 1f, 0.25f);
+        [SerializeField] private Color boundaryColor = Color.yellow;
+
+        [Header("Background (Optional)")]
+        [SerializeField] private bool showBackground = false;
+        [Tooltip("Sprite to use as the grid background. Leave empty to use a simple built-in vignette.")]
+        [SerializeField] private Sprite backgroundSprite;
+        [SerializeField] private Color backgroundColor = Color.white;
+        [Tooltip("Extra background size around the grid, in pixels (converted using PPU).")]
+        [SerializeField] private Vector2Int backgroundPaddingPixels = Vector2Int.zero;
+        [Tooltip("Sorting order for the background (lower draws behind).")]
+        [SerializeField] private int backgroundSortingOrder = -10;
+        [Tooltip("Optional Z offset for the background object (most 2D setups can leave this at 0).")]
+        [SerializeField] private float backgroundZOffset = 0f;
+
+        [Header("Centering")]
+        [Tooltip("Keep the grid horizontally centered to the main camera at runtime.")]
+        [SerializeField] private bool centerHorizontallyToCamera = true;
+
+        // Internal state
         private HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
-        private Transform gridContainer;
-        private Vector3 gridStartPosition;
-        
-        // Properties for external access
+        private Vector3 gridStartPosition; // bottom-left world position of the grid
+        private SpriteRenderer backgroundRenderer; // cached renderer
+        private Sprite generatedBackgroundSprite;  // cached fallback vignette
+
+        // Public properties
         public int GridWidth => gridWidth;
         public int GridHeight => gridHeight;
-        public float CellSize => cellSize;
-        public float CellWidth => useUniformCellSize ? cellSize : cellWidth;
-        public float CellHeight => useUniformCellSize ? cellSize : cellHeight;
-        public bool UseUniformCellSize => useUniformCellSize;
-        public float CellSpacing => cellSpacing;
-        public float CellSpacingX => useUniformSpacing ? cellSpacing : cellSpacingX;
-        public float CellSpacingY => useUniformSpacing ? cellSpacing : cellSpacingY;
-        public bool UseUniformSpacing => useUniformSpacing;
-        
-        /// <summary>
-        /// Set cell size at runtime and refresh grid calculations
-        /// </summary>
-        public void SetCellSize(float newCellSize)
-        {
-            if (newCellSize <= 0f)
-            {
-                Debug.LogWarning("Cell size must be greater than 0");
-                return;
-            }
-            
-            cellSize = newCellSize;
-            if (useUniformCellSize)
-            {
-                cellWidth = newCellSize;
-                cellHeight = newCellSize;
-            }
-            CalculateGridStartPosition();
-            
-            if (showVisualGrid && Application.isPlaying)
-            {
-                RefreshVisualGrid();
-            }
-        }
-        
-        /// <summary>
-        /// Set cell spacing at runtime
-        /// </summary>
-        public void SetCellSpacing(float newSpacing)
-        {
-            if (newSpacing < 0f)
-            {
-                Debug.LogWarning("Cell spacing cannot be negative");
-                return;
-            }
-            
-            cellSpacing = newSpacing;
-            if (useUniformSpacing)
-            {
-                cellSpacingX = newSpacing;
-                cellSpacingY = newSpacing;
-            }
-            CalculateGridStartPosition();
-            
-            if (showVisualGrid && Application.isPlaying)
-            {
-                RefreshVisualGrid();
-            }
-        }
-        
+        public int PixelsPerUnit => pixelsPerUnit;
+        public int CellSizePixels => cellSizePixels;
+        // Keep compatibility: CellSize is in world units
+        public float CellSize => Mathf.Max(1, cellSizePixels) / Mathf.Max(1, (float)pixelsPerUnit);
+        // Backward-compat shims for existing code
+        public float CellWidth => CellSize;
+        public float CellHeight => CellSize;
+        public float CellSpacingX => 0f;
+        public float CellSpacingY => 0f;
+
         private void Awake()
         {
-            // Ensure fields are properly initialized
-            InitializeFields();
-            CalculateGridStartPosition();
+            RecalculateGridStart();
             Services.Register<GridManager>(this);
-        }
-        
-        /// <summary>
-        /// Initialize fields to ensure proper defaults
-        /// </summary>
-        private void InitializeFields()
-        {
-            // Ensure cell sizing fields are initialized
-            if (cellWidth == 0f) cellWidth = cellSize;
-            if (cellHeight == 0f) cellHeight = cellSize;
-            
-            // Ensure spacing fields are initialized
-            if (cellSpacingX == 0f && !useUniformSpacing) cellSpacingX = cellSpacing;
-            if (cellSpacingY == 0f && !useUniformSpacing) cellSpacingY = cellSpacing;
-        }
-        
-        private void Start()
-        {
-            // Clean up any existing visual grid GameObjects
-            CleanupVisualGrid();
-        }
-        
-        /// <summary>
-        /// Clean up any existing visual grid GameObjects
-        /// </summary>
-        private void CleanupVisualGrid()
-        {
-            if (gridContainer != null)
+            // Optional: snap the origin to pixels on load for consistency
+            if (pixelSnap)
             {
-                if (Application.isPlaying)
-                {
-                    Destroy(gridContainer.gameObject);
-                }
-                else
-                {
-                    DestroyImmediate(gridContainer.gameObject);
-                }
-                gridContainer = null;
+                transform.position = SnapToPixel(transform.position);
+                RecalculateGridStart();
             }
-            
-            // Also clean up any "GridVisual" objects that might exist
-            GameObject existingGrid = GameObject.Find("GridVisual");
-            if (existingGrid != null)
+            UpdateBackground();
+            // Initial center (runtime)
+            CenterToCameraX_Runtime();
+        }
+
+        private void OnValidate()
+        {
+            gridWidth = Mathf.Max(1, gridWidth);
+            gridHeight = Mathf.Max(1, gridHeight);
+            pixelsPerUnit = Mathf.Max(1, pixelsPerUnit);
+            cellSizePixels = Mathf.Max(1, cellSizePixels);
+
+            if (pixelSnap)
             {
-                if (Application.isPlaying)
-                {
-                    Destroy(existingGrid);
-                }
-                else
-                {
-                    DestroyImmediate(existingGrid);
-                }
+                transform.position = SnapToPixel(transform.position);
+            }
+
+            RecalculateGridStart();
+            UpdateBackground();
+#if UNITY_EDITOR
+            UnityEditor.SceneView.RepaintAll();
+#endif
+        }
+
+        private void LateUpdate()
+        {
+            CenterToCameraX_Runtime();
+        }
+
+        private void CenterToCameraX_Runtime()
+        {
+            if (!centerHorizontallyToCamera) return;
+            var cam = Camera.main;
+            if (cam == null) return;
+            var pos = transform.position;
+            pos.x = cam.transform.position.x;
+            if (pixelSnap) pos = SnapToPixel(pos);
+            if (pos.x != transform.position.x)
+            {
+                transform.position = pos;
+                RecalculateGridStart();
+                UpdateBackground();
             }
         }
-        
-        private void CalculateGridStartPosition()
+
+        private void RecalculateGridStart()
         {
-            // Grid starts at bottom-left, centered horizontally
-            // Total size includes cells plus spacing between them
-            float totalWidth = gridWidth * CellWidth + (gridWidth - 1) * CellSpacingX;
-            float totalHeight = gridHeight * CellHeight + (gridHeight - 1) * CellSpacingY;
-            
+            // Total grid size in world units
+            float totalWidth = gridWidth * CellSize;
+            float totalHeight = gridHeight * CellSize;
+
+            // Anchor the grid around this transform (centered)
             gridStartPosition = transform.position;
             gridStartPosition.x -= totalWidth * 0.5f;
             gridStartPosition.y -= totalHeight * 0.5f;
         }
-        
-        /// <summary>
-        /// Convert grid coordinates to world position
-        /// </summary>
+
+        // Pixel helpers
+        public Vector3 SnapToPixel(Vector3 worldPos)
+        {
+            float unitPerPixel = 1f / Mathf.Max(1, (float)pixelsPerUnit);
+            worldPos.x = Mathf.Round(worldPos.x / unitPerPixel) * unitPerPixel;
+            worldPos.y = Mathf.Round(worldPos.y / unitPerPixel) * unitPerPixel;
+            return worldPos;
+        }
+
+        public Vector3 SnapToGrid(Vector3 worldPos)
+        {
+            var grid = WorldToGridPosition(worldPos);
+            return GridToWorldPosition(grid);
+        }
+
+        // Core conversions
         public Vector3 GridToWorldPosition(Vector2Int gridPos)
         {
-            // Calculate position from grid start, accounting for cell size and spacing
-            float worldX = gridPos.x * (CellWidth + CellSpacingX) + CellWidth * 0.5f;
-            float worldY = gridPos.y * (CellHeight + CellSpacingY) + CellHeight * 0.5f;
-            
-            return gridStartPosition + new Vector3(worldX, worldY, 0f);
+            float worldX = (gridPos.x + 0.5f) * CellSize + gridStartPosition.x;
+            float worldY = (gridPos.y + 0.5f) * CellSize + gridStartPosition.y;
+            var result = new Vector3(worldX, worldY, transform.position.z);
+            return pixelSnap ? SnapToPixel(result) : result;
         }
-        
-        /// <summary>
-        /// Convert world position to grid coordinates
-        /// </summary>
+
         public Vector2Int WorldToGridPosition(Vector3 worldPos)
         {
-            Vector3 localPos = worldPos - gridStartPosition;
-            
-            // Account for spacing when converting to grid coordinates
-            int gridX = Mathf.FloorToInt(localPos.x / (CellWidth + CellSpacingX));
-            int gridY = Mathf.FloorToInt(localPos.y / (CellHeight + CellSpacingY));
-            
-            return new Vector2Int(gridX, gridY);
+            Vector3 local = worldPos - gridStartPosition;
+            int gx = Mathf.FloorToInt(local.x / CellSize);
+            int gy = Mathf.FloorToInt(local.y / CellSize);
+            return new Vector2Int(gx, gy);
         }
-        
-        /// <summary>
-        /// Check if grid position is within bounds
-        /// </summary>
+
         public bool IsValidGridPosition(Vector2Int gridPos)
         {
-            return gridPos.x >= 0 && gridPos.x < gridWidth &&
-                   gridPos.y >= 0 && gridPos.y < gridHeight;
+            return gridPos.x >= 0 && gridPos.x < gridWidth && gridPos.y >= 0 && gridPos.y < gridHeight;
         }
-        
-        /// <summary>
-        /// Check if grid position is occupied
-        /// </summary>
-        public bool IsCellOccupied(Vector2Int gridPos)
-        {
-            return occupiedCells.Contains(gridPos);
-        }
-        
-        /// <summary>
-        /// Occupy a grid cell
-        /// </summary>
-        public void OccupyCell(Vector2Int gridPos)
-        {
-            if (IsValidGridPosition(gridPos))
-            {
-                occupiedCells.Add(gridPos);
-            }
-        }
-        
-        /// <summary>
-        /// Free a grid cell
-        /// </summary>
-        public void FreeCell(Vector2Int gridPos)
-        {
-            occupiedCells.Remove(gridPos);
-        }
-        
-        /// <summary>
-        /// Check if multiple cells are available for placement
-        /// </summary>
+
+        // Occupancy API
+        public bool IsCellOccupied(Vector2Int gridPos) => occupiedCells.Contains(gridPos);
+        public void OccupyCell(Vector2Int gridPos) { if (IsValidGridPosition(gridPos)) occupiedCells.Add(gridPos); }
+        public void FreeCell(Vector2Int gridPos) { occupiedCells.Remove(gridPos); }
+
         public bool CanPlaceShape(Vector2Int startPos, List<Vector2Int> shapeOffsets)
         {
-            foreach (var offset in shapeOffsets)
+            foreach (var o in shapeOffsets)
             {
-                Vector2Int checkPos = startPos + offset;
-                if (!IsValidGridPosition(checkPos) || IsCellOccupied(checkPos))
-                {
-                    return false;
-                }
+                var p = startPos + o;
+                if (!IsValidGridPosition(p) || IsCellOccupied(p)) return false;
             }
             return true;
         }
-        
-        /// <summary>
-        /// Place a shape on the grid
-        /// </summary>
+
         public bool PlaceShape(Vector2Int startPos, List<Vector2Int> shapeOffsets)
         {
-            if (!CanPlaceShape(startPos, shapeOffsets))
-            {
-                return false;
-            }
-            
-            foreach (var offset in shapeOffsets)
-            {
-                Vector2Int pos = startPos + offset;
-                OccupyCell(pos);
-            }
-            
+            if (!CanPlaceShape(startPos, shapeOffsets)) return false;
+            foreach (var o in shapeOffsets) OccupyCell(startPos + o);
             return true;
         }
-        
-        /// <summary>
-        /// Get all occupied positions
-        /// </summary>
-        public HashSet<Vector2Int> GetOccupiedPositions()
-        {
-            return new HashSet<Vector2Int>(occupiedCells);
-        }
-        
-        /// <summary>
-        /// Clear all occupied cells
-        /// </summary>
+
+        public HashSet<Vector2Int> GetOccupiedPositions() => new HashSet<Vector2Int>(occupiedCells);
+
         public void ClearAllOccupiedCells()
         {
             occupiedCells.Clear();
-            Debug.Log("All grid cells cleared");
         }
-        
-        /// <summary>
-        /// Clear all occupied cells (interface implementation)
-        /// </summary>
-        public void ClearGrid()
-        {
-            ClearAllOccupiedCells();
-        }
-        
-        /// <summary>
-        /// Get grid center position in world space
-        /// </summary>
+
+        // IGridManager
+        public void ClearGrid() => ClearAllOccupiedCells();
+
         public Vector3 GetGridCenter()
         {
-            Vector2Int centerGridPos = new Vector2Int(gridWidth / 2, gridHeight / 2);
-            return GridToWorldPosition(centerGridPos);
+            return transform.position;
         }
-        
-        /// <summary>
-        /// Test grid positioning conversions for debugging
-        /// </summary>
+
         public bool ValidateGridPositioning()
         {
-            bool allValid = true;
-            Vector2Int testGridPos = new Vector2Int(0, 0);
-            
-            Vector3 worldPos = GridToWorldPosition(testGridPos);
-            Vector2Int convertedBack = WorldToGridPosition(worldPos);
-            
-            if (convertedBack != testGridPos)
-            {
-                Debug.LogWarning($"Position conversion failed: {testGridPos} → {worldPos} → {convertedBack}");
-                allValid = false;
-            }
-            
-            return allValid;
+            var p = new Vector2Int(0, 0);
+            var w = GridToWorldPosition(p);
+            var back = WorldToGridPosition(w);
+            return back == p;
         }
-        
-        /// <summary>
-        /// Get cell center position in world space
-        /// </summary>
-        public Vector3 GetCellCenter(Vector2Int gridPos)
+
+        public Vector3 GetCellCenter(Vector2Int gridPos) => GridToWorldPosition(gridPos);
+
+        // Runtime setters kept for compatibility
+        public void SetCellSize(float newCellSize)
         {
-            return GridToWorldPosition(gridPos);
+            // Convert world units to pixels and keep it integer to stay pixel-perfect
+            int newPixels = Mathf.Max(1, Mathf.RoundToInt(newCellSize * pixelsPerUnit));
+            if (newPixels == cellSizePixels) return;
+            cellSizePixels = newPixels;
+            RecalculateGridStart();
+            UpdateBackground();
         }
-        
-        /// <summary>
-        /// Create visual grid tiles for runtime display
-        /// </summary>
-        public void CreateVisualGrid()
+
+        // Gizmo preview (editor only)
+        private void OnDrawGizmos()
         {
-            // Clear existing visual grid
-            if (gridContainer != null)
-            {
-                DestroyImmediate(gridContainer.gameObject);
-            }
-            
-            // Create container
-            GameObject containerObj = new GameObject("GridVisual");
-            containerObj.transform.SetParent(transform);
-            containerObj.transform.localPosition = Vector3.zero;
-            gridContainer = containerObj.transform;
-            
-            // Create grid tiles
+            if (!showGridGizmos) return;
+            RecalculateGridStart();
+
+            // Draw cell borders lightly
+            Gizmos.color = gridLineColor;
             for (int x = 0; x < gridWidth; x++)
             {
                 for (int y = 0; y < gridHeight; y++)
                 {
-                    Vector2Int gridPos = new Vector2Int(x, y);
-                    Vector3 worldPos = GridToWorldPosition(gridPos);
-                    
-                    GameObject tile = CreateGridTile(worldPos, gridPos);
-                    tile.transform.SetParent(gridContainer);
+                    Vector3 center = GridToWorldPosition(new Vector2Int(x, y));
+                    Vector3 size = new Vector3(CellSize, CellSize, 0.01f);
+                    Gizmos.DrawWireCube(center, size);
                 }
             }
+
+            // Draw outer boundary
+            Gizmos.color = boundaryColor;
+            float totalW = gridWidth * CellSize;
+            float totalH = gridHeight * CellSize;
+            Vector3 gridCenter = transform.position;
+            Gizmos.DrawWireCube(gridCenter, new Vector3(totalW, totalH, 0.01f));
+
+            // Draw origin dot
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(transform.position, Vector3.one * (CellSize * 0.1f));
         }
-        
-        /// <summary>
-        /// Create a single grid tile
-        /// </summary>
-        private GameObject CreateGridTile(Vector3 position, Vector2Int gridPosition)
+
+        // --- Background helpers ---
+        private void UpdateBackground()
         {
-            GameObject tile;
-            
-            if (tilePrefab != null)
+            if (!showBackground)
             {
-                tile = Instantiate(tilePrefab);
+                if (backgroundRenderer != null)
+                {
+                    backgroundRenderer.gameObject.SetActive(false);
+                }
+                return;
+            }
+
+            EnsureBackgroundRenderer();
+
+            // Pick sprite: user-provided or generated vignette
+            if (backgroundSprite != null)
+            {
+                backgroundRenderer.sprite = backgroundSprite;
             }
             else
             {
-                tile = new GameObject($"GridTile_{gridPosition.x}_{gridPosition.y}");
-                tile.AddComponent<SpriteRenderer>();
-            }
-            
-            tile.transform.position = position;
-            tile.transform.localScale = new Vector3(CellWidth * 0.9f, CellHeight * 0.9f, 1f);
-            
-            var renderer = tile.GetComponent<SpriteRenderer>();
-            if (renderer != null)
-            {
-                if (renderer.sprite == null)
+                if (generatedBackgroundSprite == null)
                 {
-                    renderer.sprite = CreateSimpleSprite();
+                    generatedBackgroundSprite = CreateVignetteSprite(64, 64);
                 }
-                // Use transparent color so grid tiles are barely visible or invisible
-                renderer.color = new Color(1f, 1f, 1f, 0f); // Completely transparent
-                renderer.material = gridMaterial;
-                renderer.sortingOrder = -1; // Behind gameplay elements
+                backgroundRenderer.sprite = generatedBackgroundSprite;
             }
-            
-            return tile;
+
+            backgroundRenderer.color = backgroundColor;
+            backgroundRenderer.sortingOrder = backgroundSortingOrder;
+
+            // Compute target size in world units
+            float totalW = gridWidth * CellSize + backgroundPaddingPixels.x / Mathf.Max(1f, pixelsPerUnit);
+            float totalH = gridHeight * CellSize + backgroundPaddingPixels.y / Mathf.Max(1f, pixelsPerUnit);
+
+            // Scale sprite to fit
+            Vector2 spriteSize = backgroundRenderer.sprite != null ? backgroundRenderer.sprite.bounds.size : Vector2.one;
+            if (spriteSize.x <= 0f) spriteSize.x = 1f;
+            if (spriteSize.y <= 0f) spriteSize.y = 1f;
+
+            // Center and align to pixels if enabled
+            Vector3 center = transform.position;
+            if (pixelSnap) center = SnapToPixel(center);
+
+            var tf = backgroundRenderer.transform;
+            tf.position = new Vector3(center.x, center.y, center.z + backgroundZOffset);
+            tf.localScale = new Vector3(totalW / spriteSize.x, totalH / spriteSize.y, 1f);
+            tf.localRotation = Quaternion.identity;
+
+            backgroundRenderer.gameObject.SetActive(true);
         }
-        
-        /// <summary>
-        /// Create a simple square sprite for grid tiles
-        /// </summary>
-        private Sprite CreateSimpleSprite()
+
+        private void EnsureBackgroundRenderer()
         {
-            Texture2D texture = new Texture2D(1, 1);
-            texture.SetPixel(0, 0, Color.white);
-            texture.Apply();
-            return Sprite.Create(texture, new Rect(0, 0, 1, 1), Vector2.one * 0.5f);
-        }
-        
-        /// <summary>
-        /// Refresh the visual grid
-        /// </summary>
-        public void RefreshVisualGrid()
-        {
-            // Disabled - no runtime GameObjects created
-            // Only gizmos are used for editor preview
-        }
-        
-        private void OnDrawGizmos()
-        {
-            if (!showVisualGrid) return;
-            
-            CalculateGridStartPosition();
-            
-            // Draw grid cells
-            Gizmos.color = new Color(0.5f, 0.8f, 1f, 0.6f);
-            for (int x = 0; x < gridWidth; x++)
+            if (backgroundRenderer != null) return;
+            Transform t = transform.Find("GridBackground");
+            if (t != null)
             {
-                for (int y = 0; y < gridHeight; y++)
+                backgroundRenderer = t.GetComponent<SpriteRenderer>();
+            }
+            if (backgroundRenderer == null)
+            {
+                var go = new GameObject("GridBackground");
+                go.transform.SetParent(transform);
+                go.transform.localPosition = Vector3.zero;
+                backgroundRenderer = go.AddComponent<SpriteRenderer>();
+                backgroundRenderer.drawMode = SpriteDrawMode.Simple; // minimal, we scale via transform
+                backgroundRenderer.sharedMaterial = null; // default sprite mat
+            }
+        }
+
+        private Sprite CreateVignetteSprite(int w, int h)
+        {
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Point; // crisp for pixel art
+            tex.wrapMode = TextureWrapMode.Clamp;
+
+            Vector2 center = new Vector2((w - 1) * 0.5f, (h - 1) * 0.5f);
+            float maxDist = Vector2.Distance(Vector2.zero, center);
+            var pixels = new Color[w * h];
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
                 {
-                    Vector3 cellCenter = GridToWorldPosition(new Vector2Int(x, y));
-                    Vector3 cellSize = new Vector3(CellWidth * 0.9f, CellHeight * 0.9f, 0.1f);
-                    Gizmos.DrawWireCube(cellCenter, cellSize);
+                    float d = Vector2.Distance(new Vector2(x, y), center) / maxDist;
+                    // Darker at edges, lighter in center
+                    float v = Mathf.Lerp(0.85f, 0.6f, Mathf.SmoothStep(0f, 1f, d));
+                    pixels[y * w + x] = new Color(v, v, v, 1f);
                 }
             }
-            
-            // Draw grid boundary
-            Gizmos.color = Color.yellow;
-            Vector3 gridCenter = transform.position;
-            float totalWidth = gridWidth * CellWidth + (gridWidth - 1) * CellSpacingX;
-            float totalHeight = gridHeight * CellHeight + (gridHeight - 1) * CellSpacingY;
-            Vector3 gridSize = new Vector3(totalWidth, totalHeight, 0.1f);
-            Gizmos.DrawWireCube(gridCenter, gridSize);
-            
-            // Draw center point
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireCube(transform.position, Vector3.one * 0.2f);
+            tex.SetPixels(pixels);
+            tex.Apply(false, false);
+
+            // Use the grid PPU so it scales consistently
+            return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), Mathf.Max(1, pixelsPerUnit));
         }
-        
-        private void OnValidate()
+
+#if UNITY_EDITOR
+        [ContextMenu("Grid/Snap Origin To Pixel Grid")]
+        private void Editor_SnapOriginToPixels()
         {
-            // Ensure valid values
-            gridWidth = Mathf.Max(1, gridWidth);
-            gridHeight = Mathf.Max(1, gridHeight);
-            cellSize = Mathf.Max(0.1f, cellSize);
-            cellWidth = Mathf.Max(0.1f, cellWidth);
-            cellHeight = Mathf.Max(0.1f, cellHeight);
-            cellSpacing = Mathf.Max(0f, cellSpacing);
-            cellSpacingX = Mathf.Max(0f, cellSpacingX);
-            cellSpacingY = Mathf.Max(0f, cellSpacingY);
-            
-            // Update calculations when values change in inspector
-            InitializeFields();
-            CalculateGridStartPosition();
-            
-            #if UNITY_EDITOR
+            transform.position = SnapToPixel(transform.position);
+            RecalculateGridStart();
             UnityEditor.SceneView.RepaintAll();
-            #endif
         }
+
+        [ContextMenu("Grid/Rebuild Background")] 
+        private void Editor_RebuildBackground()
+        {
+            UpdateBackground();
+            UnityEditor.SceneView.RepaintAll();
+        }
+
+        [ContextMenu("Grid/Center Horizontally To Camera Now")] 
+        private void Editor_CenterToCameraXNow()
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            var pos = transform.position;
+            pos.x = cam.transform.position.x;
+            if (pixelSnap) pos = SnapToPixel(pos);
+            transform.position = pos;
+            RecalculateGridStart();
+            UpdateBackground();
+            UnityEditor.SceneView.RepaintAll();
+        }
+#endif
     }
 }
