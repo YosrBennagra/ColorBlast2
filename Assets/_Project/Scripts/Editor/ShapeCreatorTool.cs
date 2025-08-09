@@ -141,6 +141,14 @@ public class ShapeCreatorTool : EditorWindow
         new Vector2Int(1, 1),
         new Vector2Int(1, 2)
     };
+    private static readonly List<Vector2Int> RLongOShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(0, 1),
+        new Vector2Int(1, 0),
+        new Vector2Int(1, 1),
+        new Vector2Int(2, 0),
+        new Vector2Int(2, 1),
+    };
     private static readonly List<Vector2Int> BigOShape = new List<Vector2Int> {
         new Vector2Int(0, 0),
         new Vector2Int(0, 1),
@@ -179,6 +187,26 @@ public class ShapeCreatorTool : EditorWindow
         new Vector2Int(0, 0),
         new Vector2Int(0, -1)
     };
+
+      private static readonly List<Vector2Int> iiSlashShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 1),
+    };
+          private static readonly List<Vector2Int> iiiSlashShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(1, 1),
+        new Vector2Int(2, 2),
+    };
+      private static readonly List<Vector2Int> RiiSlashShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(-1, 1),
+    };
+          private static readonly List<Vector2Int> RiiiSlashShape = new List<Vector2Int> {
+        new Vector2Int(0, 0),
+        new Vector2Int(-1, 1),
+        new Vector2Int(-2, 2),
+    };
+
 
     [MenuItem("Tools/ColorBlast2/Shape Creator")]
     public static void ShowWindow()
@@ -250,12 +278,26 @@ public class ShapeCreatorTool : EditorWindow
             CreateShape("RIIII_Shape", RIIIIShape);
         if (GUILayout.Button("Create RIIIII-Shape"))
             CreateShape("RIIIII_Shape", RIIIIIShape);
+
+        if (GUILayout.Button("Create Slash-Shape"))
+            CreateShape("Slash_Shape", iiSlashShape);
+        if (GUILayout.Button("Create Slash-Shape-iii"))
+            CreateShape("Slash_Shape_iii", iiiSlashShape);
+        if (GUILayout.Button("Create R-Slash-Shape"))
+            CreateShape("R_Slash_Shape", RiiSlashShape);
+        if (GUILayout.Button("Create R-Slash-Shape-iii"))
+            CreateShape("R_Slash_Shape_iii", RiiiSlashShape);
+
         
+
 
         if (GUILayout.Button("Create O-Shape"))
             CreateShape("O_Shape", OShape);
         if (GUILayout.Button("Create Long-O-Shape"))
             CreateShape("Long_O_Shape", LongOShape);
+        if (GUILayout.Button("Create RLong-O-Shape"))
+            CreateShape("RLong_O_Shape", RLongOShape);
+
         if (GUILayout.Button("Create Big-O-Shape"))
             CreateShape("Big_O_Shape", BigOShape);
 
