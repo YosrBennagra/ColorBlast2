@@ -53,6 +53,14 @@ public class ShapeSpawner : MonoBehaviour
     [Tooltip("Use SpriteRenderer bounds to center shapes (more accurate when visuals have pivots/scales).")]
     [SerializeField] private bool centerByRenderers = true;
 
+    [Header("Shape Size Control")]
+    [Tooltip("Global base scale applied to all spawned shapes before spawn effect.")]
+    [SerializeField] private Vector3 globalShapeScale = Vector3.one;
+    [Tooltip("Optional per-slot scale overrides (size 3). Leave zero to use global scale.")]
+    [SerializeField] private Vector3[] perSlotScale = new Vector3[3];
+    [Tooltip("Whether to multiply spawn effect by the base scale or animate from it.")]
+    [SerializeField] private bool spawnEffectFromBaseScale = true;
+
     private void OnEnable()
     {
         // Keep layout tidy in editor
@@ -306,24 +314,55 @@ public class ShapeSpawner : MonoBehaviour
         // Spawn at the designated spawn point
         Vector3 spawnPosition = spawnPoints[spawnIndex].position;
         GameObject spawnedShape = Instantiate(shapePrefab, spawnPosition, Quaternion.identity);
+
+        // Apply base scale control
+        Vector3 baseScale = GetBaseScaleForSlot(spawnIndex);
+        if (baseScale == Vector3.zero) baseScale = Vector3.one;
+        spawnedShape.transform.localScale = baseScale;
         
-        // Center the shape inside the gizmo if requested
+        // Center in gizmo if requested
         if (centerSpawnedShapesInGizmo)
         {
             TryCenterShapeToSpawn(spawnedShape, spawnPosition);
         }
         
-        // Configure the spawned shape BEFORE Start() is called
         var shapeComponent = spawnedShape.GetComponent<Core.Shape>();
         var dragHandler = spawnedShape.GetComponent<Gameplay.DragHandler>();
-        
         if (shapeComponent != null && dragHandler != null)
         {
             spawnedShape.name = $"Shape_{spawnIndex}_{Random.Range(1000, 9999)}";
         }
         
-        StartCoroutine(SpawnEffect(spawnedShape));
+        StartCoroutine(SpawnEffect(spawnedShape, baseScale));
         return spawnedShape;
+    }
+
+    private Vector3 GetBaseScaleForSlot(int index)
+    {
+        if (perSlotScale != null && perSlotScale.Length == 3)
+        {
+            var slot = perSlotScale[index];
+            if (slot != Vector3.zero) return Vector3.Scale(globalShapeScale, slot);
+        }
+        return globalShapeScale;
+    }
+
+    private System.Collections.IEnumerator SpawnEffect(GameObject shape, Vector3 baseScale)
+    {
+        if (shape == null) yield break;
+        Vector3 startScale = spawnEffectFromBaseScale ? (baseScale * minSpawnScale) : (Vector3.one * minSpawnScale);
+        Vector3 targetScale = spawnEffectFromBaseScale ? (baseScale * maxSpawnScale) : (baseScale * maxSpawnScale);
+        shape.transform.localScale = startScale;
+        float elapsed = 0f;
+        while (elapsed < spawnEffectDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / spawnEffectDuration;
+            t = 1f - (1f - t) * (1f - t);
+            shape.transform.localScale = Vector3.Lerp(startScale, targetScale, t);
+            yield return null;
+        }
+        shape.transform.localScale = targetScale;
     }
 
     private void TryCenterShapeToSpawn(GameObject shapeGO, Vector3 targetCenter)
@@ -383,24 +422,6 @@ public class ShapeSpawner : MonoBehaviour
         if (gm != null) desired = gm.SnapToPixel(desired);
         go.transform.position = desired;
         return true;
-    }
-
-    private System.Collections.IEnumerator SpawnEffect(GameObject shape)
-    {
-        if (shape == null) yield break;
-        Vector3 originalScale = shape.transform.localScale;
-        shape.transform.localScale = originalScale * minSpawnScale;
-        float elapsed = 0f;
-        while (elapsed < spawnEffectDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / spawnEffectDuration;
-            t = 1f - (1f - t) * (1f - t);
-            float currentScale = Mathf.Lerp(minSpawnScale, maxSpawnScale, t);
-            shape.transform.localScale = originalScale * currentScale;
-            yield return null;
-        }
-        shape.transform.localScale = originalScale * maxSpawnScale;
     }
 
     private void OnLinesCleared(List<Vector2Int> clearedPositions)
