@@ -2,11 +2,12 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections;
 using ColorBlast.Core.Architecture;
+using UnityEngine.EventSystems;
 
 namespace Gameplay
 {
     /// <summary>
-    /// Handles dragging mechanics for shapes
+    /// Handles dragging mechanics for shapes (mouse + touch)
     /// </summary>
     [RequireComponent(typeof(Core.Shape))]
     public class DragHandler : MonoBehaviour
@@ -16,11 +17,16 @@ namespace Gameplay
         [SerializeField] private float returnAnimationDuration = 0.3f;
         [SerializeField] private bool useReturnAnimation = true;
         [SerializeField] private bool showInvalidPlacementFeedback = true;
-        
+
+        [Header("Input")]
+        [Tooltip("Ignore pointer/touch when over UI elements.")]
+        [SerializeField] private bool ignoreUI = true;
+
         private Core.Shape shape;
         private Camera cam;
         private Vector3 offset;
         private bool isDragging = false;
+        private int activeTouchId = -1;
         
         private void Start()
         {
@@ -31,29 +37,143 @@ namespace Gameplay
         private void Update()
         {
             if (shape.IsPlaced) return;
+            if (cam == null) cam = Camera.main;
             
-            // Don't allow dragging until services are initialized
-            if (!AreServicesReady())
-                return;
-            
-            var leftButton = Mouse.current.leftButton;
-            
-            if (leftButton.wasPressedThisFrame)
+            // Allow starting drag even if services not fully ready; placement will validate at drop.
+            if (!isDragging)
             {
-                TryStartDrag();
+                if (WasPointerPressedThisFrame(out Vector2 screenPos, out int touchId))
+                {
+                    if (ignoreUI && IsOverUI(touchId)) return;
+                    TryStartDrag(ScreenToWorld(screenPos));
+                    activeTouchId = touchId; // -1 for mouse, or touch id for touch
+                }
             }
             
             if (isDragging)
             {
-                if (leftButton.isPressed)
+                if (IsPointerDown(activeTouchId))
                 {
-                    UpdateDrag();
+                    if (TryGetPointerPosition(activeTouchId, out Vector2 screenPos))
+                    {
+                        UpdateDrag(ScreenToWorld(screenPos));
+                    }
                 }
-                else
+                else if (WasPointerReleasedThisFrame(activeTouchId))
                 {
                     EndDrag();
+                    activeTouchId = -1;
                 }
             }
+        }
+        
+        private Vector3 ScreenToWorld(Vector2 screen)
+        {
+            float z = Mathf.Abs(cam.transform.position.z - transform.position.z);
+            var w = cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, z));
+            w.z = transform.position.z;
+            return w;
+        }
+
+        private bool WasPointerPressedThisFrame(out Vector2 screenPos, out int touchId)
+        {
+            screenPos = default;
+            touchId = -1; // mouse
+            
+            // Touch (mobile/simulator)
+            if (Touchscreen.current != null)
+            {
+                var touch = Touchscreen.current.primaryTouch;
+                if (touch.press.wasPressedThisFrame)
+                {
+                    screenPos = touch.position.ReadValue();
+                    touchId = touch.touchId.ReadValue();
+                    return true;
+                }
+                // Also allow any new touch
+                foreach (var t in Touchscreen.current.touches)
+                {
+                    if (t.press.wasPressedThisFrame)
+                    {
+                        screenPos = t.position.ReadValue();
+                        touchId = t.touchId.ReadValue();
+                        return true;
+                    }
+                }
+            }
+            
+            // Mouse
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                screenPos = Mouse.current.position.ReadValue();
+                return true;
+            }
+            
+            return false;
+        }
+
+        private bool IsPointerDown(int touchId)
+        {
+            if (touchId >= 0 && Touchscreen.current != null)
+            {
+                foreach (var t in Touchscreen.current.touches)
+                {
+                    if (t.touchId.ReadValue() == touchId)
+                        return t.press.isPressed;
+                }
+                return false;
+            }
+            
+            return Mouse.current != null && Mouse.current.leftButton.isPressed;
+        }
+
+        private bool WasPointerReleasedThisFrame(int touchId)
+        {
+            if (touchId >= 0 && Touchscreen.current != null)
+            {
+                foreach (var t in Touchscreen.current.touches)
+                {
+                    if (t.touchId.ReadValue() == touchId)
+                        return t.press.wasReleasedThisFrame;
+                }
+                return true; // touch disappeared
+            }
+            
+            return Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame;
+        }
+
+        private bool TryGetPointerPosition(int touchId, out Vector2 screenPos)
+        {
+            screenPos = default;
+            if (touchId >= 0 && Touchscreen.current != null)
+            {
+                foreach (var t in Touchscreen.current.touches)
+                {
+                    if (t.touchId.ReadValue() == touchId)
+                    {
+                        screenPos = t.position.ReadValue();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            if (Mouse.current != null)
+            {
+                screenPos = Mouse.current.position.ReadValue();
+                return true;
+            }
+            return false;
+        }
+
+        private bool IsOverUI(int pointerId)
+        {
+            if (EventSystem.current == null) return false;
+            if (pointerId >= 0)
+            {
+                return EventSystem.current.IsPointerOverGameObject(pointerId);
+            }
+            return EventSystem.current.IsPointerOverGameObject();
         }
         
         private bool AreServicesReady()
@@ -61,33 +181,28 @@ namespace Gameplay
             return Services.Has<PlacementSystem>() && Core.GameManager.Instance != null && Core.GameManager.Instance.IsInitialized();
         }
         
-        private void TryStartDrag()
+        private void TryStartDrag(Vector3 pointerWorld)
         {
             if (isDragging || shape.IsPlaced) return;
             
-            Vector2 mousePosition = Mouse.current.position.ReadValue();
-            Vector3 mouseWorldPos = cam.ScreenToWorldPoint(new Vector3(mousePosition.x, mousePosition.y, cam.nearClipPlane));
-            
             var bounds = GetBounds();
-            if (bounds.size != Vector3.zero && bounds.Contains(new Vector3(mouseWorldPos.x, mouseWorldPos.y, transform.position.z)))
+            if (bounds.size != Vector3.zero && bounds.Contains(new Vector3(pointerWorld.x, pointerWorld.y, transform.position.z)))
             {
-                StartDrag(mouseWorldPos);
+                StartDrag(pointerWorld);
             }
         }
         
-        private void StartDrag(Vector3 mouseWorldPos)
+        private void StartDrag(Vector3 pointerWorld)
         {
             isDragging = true;
-            mouseWorldPos.z = transform.position.z;
-            offset = transform.position - mouseWorldPos;
+            pointerWorld.z = transform.position.z;
+            offset = transform.position - pointerWorld;
         }
         
-        private void UpdateDrag()
+        private void UpdateDrag(Vector3 pointerWorld)
         {
-            Vector2 mousePosition = Mouse.current.position.ReadValue();
-            Vector3 mouseWorldPos = cam.ScreenToWorldPoint(new Vector3(mousePosition.x, mousePosition.y, cam.nearClipPlane));
-            mouseWorldPos.z = transform.position.z;
-            transform.position = mouseWorldPos + offset;
+            pointerWorld.z = transform.position.z;
+            transform.position = pointerWorld + offset;
         }
         
         private void EndDrag()
@@ -97,7 +212,6 @@ namespace Gameplay
             // Check if services are available before using them
             if (!Services.Has<PlacementSystem>())
             {
-                Debug.LogWarning("PlacementSystem not found! Make sure GameManager is in the scene and has initialized.");
                 ReturnToSpawn();
                 return;
             }

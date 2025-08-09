@@ -247,7 +247,7 @@ public class ShapeCreatorTool : EditorWindow
             CreateShape("RL_ShapePM180", RLShapePM180);
         if (GUILayout.Button("Create RL-ShapeP90"))
             CreateShape("RL_ShapeP90", RLShapeP90);
-        if (GUILayout.Button("Create L-ShapeM90"))
+        if (GUILayout.Button("Create RL-ShapeM90"))
             CreateShape("RL_ShapeM90", RLShapeM90);
 
         if (GUILayout.Button("Create T-Shape"))
@@ -386,10 +386,24 @@ public class ShapeCreatorTool : EditorWindow
                 Renderer renderer = tile.GetComponent<Renderer>();
                 if (renderer != null)
                 {
-                    renderer.material = tileMaterial;
+                    renderer.sharedMaterial = tileMaterial; // avoid creating instances
                 }
             }
         }
+    }
+
+    private static Sprite cachedWhiteSprite;
+    private static Sprite GetWhiteSprite()
+    {
+        if (cachedWhiteSprite != null) return cachedWhiteSprite;
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        texture.filterMode = FilterMode.Point;
+        var pixels = new Color[4];
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = Color.white;
+        texture.SetPixels(pixels);
+        texture.Apply();
+        cachedWhiteSprite = Sprite.Create(texture, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f), 64);
+        return cachedWhiteSprite;
     }
 
     void CreateSimpleVisualTiles(GameObject parent, List<Vector2Int> offsets)
@@ -402,22 +416,11 @@ public class ShapeCreatorTool : EditorWindow
 
             // Add SpriteRenderer with a simple square sprite
             SpriteRenderer spriteRenderer = tile.AddComponent<SpriteRenderer>();
-
-            // Create a simple square texture
-            Texture2D texture = new Texture2D(64, 64);
-            Color[] pixels = new Color[64 * 64];
-            for (int i = 0; i < pixels.Length; i++)
-                pixels[i] = Color.white;
-            texture.SetPixels(pixels);
-            texture.Apply();
-
-            // Create sprite from texture
-            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 64);
-            spriteRenderer.sprite = sprite;
+            spriteRenderer.sprite = GetWhiteSprite();
 
             if (tileMaterial != null)
             {
-                spriteRenderer.material = tileMaterial;
+                spriteRenderer.sharedMaterial = tileMaterial; // avoid instances
             }
         }
     }
