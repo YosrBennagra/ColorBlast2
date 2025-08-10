@@ -133,7 +133,7 @@ namespace Gameplay
             return true;
         }
         
-        private List<Vector2Int> ClearHorizontalLine(int row)
+    private List<Vector2Int> ClearHorizontalLine(int row)
         {
             List<Vector2Int> clearedPositions = new List<Vector2Int>();
             
@@ -142,7 +142,9 @@ namespace Gameplay
                 Vector2Int gridPos = ArrayIndicesToGridPosition(col, row);
                 if (gridManager.IsCellOccupied(gridPos))
                 {
-                    gridManager.FreeCell(gridPos);
+            // Play clear FX using theme of any shape that covers this tile
+            PlayTileClearFX(gridPos);
+            gridManager.FreeCell(gridPos);
                     clearedPositions.Add(gridPos);
                 }
             }
@@ -159,12 +161,43 @@ namespace Gameplay
                 Vector2Int gridPos = ArrayIndicesToGridPosition(col, row);
                 if (gridManager.IsCellOccupied(gridPos))
                 {
+                    PlayTileClearFX(gridPos);
                     gridManager.FreeCell(gridPos);
                     clearedPositions.Add(gridPos);
                 }
             }
             
             return clearedPositions;
+        }
+
+        private void PlayTileClearFX(Vector2Int gridPos)
+        {
+            // Locate a placed shape whose offsets include this cell and use its theme
+            var shapes = FindObjectsByType<Core.Shape>(FindObjectsSortMode.None);
+            SpriteTheme theme = null;
+            Vector3 world = gridManager.GridToWorldPosition(gridPos);
+            for (int i = 0; i < shapes.Length; i++)
+            {
+                var s = shapes[i];
+                if (s == null || !s.IsPlaced) continue;
+                Vector2Int basePos = s.GetGridPosition();
+                var offs = s.ShapeOffsets;
+                for (int k = 0; k < offs.Count; k++)
+                {
+                    if (basePos + offs[k] == gridPos)
+                    {
+                        var st = s.GetComponent<ShapeThemeStorage>();
+                        if (st != null) theme = st.CurrentTheme;
+                        i = shapes.Length; // break outer
+                        break;
+                    }
+                }
+            }
+            var mgr = ShapeSpriteManager.Instance;
+            if (mgr != null)
+            {
+                mgr.PlayClearEffectAt(world, theme);
+            }
         }
         
         private Vector2Int ArrayIndicesToGridPosition(int col, int row)

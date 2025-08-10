@@ -9,12 +9,23 @@ using System.Linq;
 public class SpriteTheme
 {
     public string themeName;
+    [Header("Sprites")]
+    [Tooltip("Primary sprite if multiple sprites list is empty.")]
     public Sprite tileSprite;
+    [Tooltip("Optional list of sprites to add variation across tiles for this theme.")]
+    public List<Sprite> tileSprites = new List<Sprite>();
+    [Tooltip("If true, pick a random sprite per tile from tileSprites; otherwise use tileIndex % tileSprites.Count.")]
+    public bool randomizeTileSprites = false;
     [Range(0f, 1f)]
     public float spawnWeight = 1f; // Higher weight = more likely to spawn
     
     [Header("Audio")]
     public AudioClip placementSound;
+    public AudioClip clearSound;
+
+    [Header("Effects/Animation")]
+    [Tooltip("Optional particle/effect prefab to spawn when a tile of this theme is cleared.")]
+    public GameObject clearEffectPrefab;
 }
 
 public class ShapeSpriteManager : MonoBehaviour
@@ -22,6 +33,11 @@ public class ShapeSpriteManager : MonoBehaviour
     [Header("Sprite Themes")]
     [SerializeField] private List<SpriteTheme> spriteThemes = new List<SpriteTheme>();
     
+    [Header("Default FX/SFX (fallbacks)")]
+    [SerializeField] private AudioClip defaultPlacementSound;
+    [SerializeField] private AudioClip defaultClearSound;
+    [SerializeField] private GameObject defaultClearEffectPrefab;
+
     [Header("Spawning Rules")]
     [SerializeField] private bool randomizeThemes = true;
     [SerializeField] private bool allowSameThemeForAllShapes = true;
@@ -129,7 +145,7 @@ public class ShapeSpriteManager : MonoBehaviour
             return;
         }
         
-        // Apply theme to all tile renderers
+    // Apply theme to all tile renderers
         for (int i = 0; i < tileRenderers.Length; i++)
         {
             ApplyThemeToRenderer(tileRenderers[i], theme, i, tileRenderers.Length);
@@ -158,8 +174,14 @@ public class ShapeSpriteManager : MonoBehaviour
     {
         if (renderer == null) return;
         
-        // Apply sprite
-        if (theme.tileSprite != null)
+        // Choose sprite with per-theme variation support
+        if (theme.tileSprites != null && theme.tileSprites.Count > 0)
+        {
+            int pick = theme.randomizeTileSprites ? Random.Range(0, theme.tileSprites.Count) : (tileIndex % theme.tileSprites.Count);
+            var chosen = theme.tileSprites[Mathf.Clamp(pick, 0, theme.tileSprites.Count - 1)];
+            if (chosen != null) renderer.sprite = chosen;
+        }
+        else if (theme.tileSprite != null)
         {
             renderer.sprite = theme.tileSprite;
         }
@@ -269,6 +291,48 @@ public class ShapeSpriteManager : MonoBehaviour
     public SpriteTheme GetThemeByName(string themeName)
     {
         return spriteThemes.FirstOrDefault(theme => theme.themeName.Equals(themeName, System.StringComparison.OrdinalIgnoreCase));
+    }
+    
+    /// <summary>
+    /// Spawn a clear effect and sound at a world position using the given theme (falls back to defaults).
+    /// </summary>
+    public void PlayClearEffectAt(Vector3 worldPosition, SpriteTheme theme)
+    {
+        // Effect prefab spawn
+        GameObject prefab = theme != null && theme.clearEffectPrefab != null ? theme.clearEffectPrefab : defaultClearEffectPrefab;
+        if (prefab != null)
+        {
+            var fx = Instantiate(prefab, worldPosition, Quaternion.identity);
+            // Auto-destroy if it doesn't auto-cleanup; try to detect particle system duration
+            var ps = fx.GetComponentInChildren<ParticleSystem>();
+            if (ps != null)
+            {
+                Destroy(fx, ps.main.duration + ps.main.startLifetime.constantMax + 0.25f);
+            }
+            else
+            {
+                Destroy(fx, 1.5f);
+            }
+        }
+
+        // Audio
+        var clip = theme != null && theme.clearSound != null ? theme.clearSound : defaultClearSound;
+        if (clip != null)
+        {
+            AudioSource.PlayClipAtPoint(clip, worldPosition, 1f);
+        }
+    }
+
+    /// <summary>
+    /// Play placement sound at position using theme or default fallback.
+    /// </summary>
+    public void PlayPlacementAt(Vector3 worldPosition, SpriteTheme theme)
+    {
+        var clip = theme != null && theme.placementSound != null ? theme.placementSound : defaultPlacementSound;
+        if (clip != null)
+        {
+            AudioSource.PlayClipAtPoint(clip, worldPosition, 1f);
+        }
     }
     
     /// <summary>

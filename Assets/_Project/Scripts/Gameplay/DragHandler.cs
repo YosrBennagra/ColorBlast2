@@ -37,6 +37,14 @@ namespace Gameplay
         [SerializeField] private bool boostSortingOrderOnDrag = true;
         [SerializeField] private int sortingOrderBoost = 200;
 
+    [Header("Drag Sorting")]
+    [Tooltip("Override sorting layer/order absolutely while dragging so the shape is always on top.")]
+    [SerializeField] private bool useAbsoluteDragSorting = true;
+    [Tooltip("Optional sorting layer name to use while dragging (leave empty to keep current layer).")]
+    [SerializeField] private string dragSortingLayerName = "";
+    [Tooltip("Sorting order to apply while dragging (very high keeps it above placed shapes).")]
+    [SerializeField] private int dragSortingOrderAbsolute = 10000;
+
     [Header("Placement Size")]
     [Tooltip("When placement succeeds, set the shape back to this scale (original size by default).")]
     [SerializeField] private bool overrideScaleOnPlacement = true;
@@ -52,6 +60,7 @@ namespace Gameplay
         private bool isTouchDrag = false;
     private SpriteRenderer[] cachedRenderers;
         private int[] originalSortingOrders;
+    private int[] originalSortingLayerIDs;
     private Vector3 preDragScale;
         
     // Preview state
@@ -66,10 +75,14 @@ namespace Gameplay
             if (cachedRenderers != null && cachedRenderers.Length > 0)
             {
                 originalSortingOrders = new int[cachedRenderers.Length];
+                originalSortingLayerIDs = new int[cachedRenderers.Length];
                 for (int i = 0; i < cachedRenderers.Length; i++)
                 {
                     if (cachedRenderers[i] != null)
+                    {
                         originalSortingOrders[i] = cachedRenderers[i].sortingOrder;
+                        originalSortingLayerIDs[i] = cachedRenderers[i].sortingLayerID;
+                    }
                 }
             }
         }
@@ -304,9 +317,22 @@ namespace Gameplay
             for (int i = 0; i < cachedRenderers.Length; i++)
             {
                 if (cachedRenderers[i] == null) continue;
-                cachedRenderers[i].sortingOrder = (originalSortingOrders != null && i < originalSortingOrders.Length)
-                    ? originalSortingOrders[i] + sortingOrderBoost
-                    : cachedRenderers[i].sortingOrder + sortingOrderBoost;
+                if (useAbsoluteDragSorting)
+                {
+                    // Switch layer if provided
+                    if (!string.IsNullOrEmpty(dragSortingLayerName))
+                    {
+                        int lid = SortingLayer.NameToID(dragSortingLayerName);
+                        if (lid != 0) cachedRenderers[i].sortingLayerID = lid;
+                    }
+                    cachedRenderers[i].sortingOrder = dragSortingOrderAbsolute;
+                }
+                else
+                {
+                    cachedRenderers[i].sortingOrder = (originalSortingOrders != null && i < originalSortingOrders.Length)
+                        ? originalSortingOrders[i] + sortingOrderBoost
+                        : cachedRenderers[i].sortingOrder + sortingOrderBoost;
+                }
             }
         }
 
@@ -319,6 +345,10 @@ namespace Gameplay
                 if (originalSortingOrders != null && i < originalSortingOrders.Length)
                 {
                     cachedRenderers[i].sortingOrder = originalSortingOrders[i];
+                }
+                if (originalSortingLayerIDs != null && i < originalSortingLayerIDs.Length)
+                {
+                    cachedRenderers[i].sortingLayerID = originalSortingLayerIDs[i];
                 }
             }
         }

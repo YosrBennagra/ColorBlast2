@@ -97,6 +97,15 @@ namespace Gameplay
             
             // Mark as placed
             shape.MarkAsPlaced();
+            // Play placement sound via manager (uses per-theme or default fallback)
+            var themeStorage = shape.GetComponent<ShapeThemeStorage>();
+            var manager = ShapeSpriteManager.Instance;
+            if (manager != null)
+            {
+                var theme = themeStorage != null ? themeStorage.CurrentTheme : null;
+                var pos = shape.transform.position;
+                manager.PlayPlacementAt(pos, theme);
+            }
             
             // Check for line clears
             if (lineClearSystem != null)

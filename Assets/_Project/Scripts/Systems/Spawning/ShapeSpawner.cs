@@ -37,6 +37,36 @@ public class ShapeSpawner : MonoBehaviour
     [SerializeField] private ShapeSpriteManager spriteManager; // Reference to sprite manager
     [SerializeField] private bool useRandomThemes = true; // Whether to apply random themes to spawned shapes
     
+    [Header("Selection Mode")]
+    [Tooltip("If enabled, picking shapes is deterministic (no randomness) and avoids repeats.")]
+    [SerializeField] private bool useDeterministicSelection = true;
+    [Tooltip("Avoid duplicates within the same set of 3 spawns.")]
+    [SerializeField] private bool preventDuplicatesInSet = true;
+    [Tooltip("Ensure each set includes at least one placeable shape.")]
+    [SerializeField] private bool ensurePlaceableInSet = true;
+    [Tooltip("Keep a short recent history to avoid immediate repeats across sets (0 disables).")]
+    [SerializeField, Min(0)] private int noRepeatWindow = 4;
+    [Tooltip("Log deterministic selection details for debugging.")]
+    [SerializeField] private bool debugSelection = false;
+    [Tooltip("Avoid picking multiple shapes from the same family (e.g., L/I/T) within one set of 3.")]
+    [SerializeField] private bool preventSameFamilyInSet = true;
+    [Tooltip("Optional family labels aligned with shapePrefabs (e.g., L, I, T, O, Z). Empty entries fallback to prefab name prefix.")]
+    [SerializeField] private string[] shapeFamilyLabels = new string[0];
+
+    [Header("Shape Variants (Orientation)")]
+    [Tooltip("Allow rotated/mirrored variants when spawning so sets don't look identical.")]
+    [SerializeField] private bool enableOrientationVariants = true;
+    [Tooltip("Include 90° rotations.")]
+    [SerializeField] private bool allowRotate90 = true;
+    [Tooltip("Include 180° rotation.")]
+    [SerializeField] private bool allowRotate180 = true;
+    [Tooltip("Include 270° rotation.")]
+    [SerializeField] private bool allowRotate270 = true;
+    [Tooltip("Include horizontal mirror (flip X).")]
+    [SerializeField] private bool allowMirrorX = true;
+    [Tooltip("Include vertical mirror (flip Y).")]
+    [SerializeField] private bool allowMirrorY = false;
+
     [Header("Spawn Effects")]
     [SerializeField] private float spawnEffectDuration = 0.3f;
     [SerializeField] private float minSpawnScale = 0.1f;
@@ -49,9 +79,13 @@ public class ShapeSpawner : MonoBehaviour
     private bool allShapesPlaced = false;
     private float lastCheckTime = 0f;
     private bool[] shapeStatusCache = new bool[3]; // Cache shape placement status
-
-    [Tooltip("Use SpriteRenderer bounds to center shapes (more accurate when visuals have pivots/scales).")]
     [SerializeField] private bool centerByRenderers = true;
+
+    // Deterministic bag state
+    private readonly List<int> bag = new List<int>();
+    private int bagCursor = 0;
+    private readonly Queue<int> recentIndices = new Queue<int>();
+    private readonly Queue<int> deferredIndices = new Queue<int>();
 
     [Header("Shape Size Control")]
     [Tooltip("Global base scale applied to all spawned shapes before spawn effect.")]
@@ -60,6 +94,24 @@ public class ShapeSpawner : MonoBehaviour
     [SerializeField] private Vector3[] perSlotScale = new Vector3[3];
     [Tooltip("Whether to multiply spawn effect by the base scale or animate from it.")]
     [SerializeField] private bool spawnEffectFromBaseScale = true;
+
+    [Header("Anti-Overlap in Tray")]
+    [Tooltip("Clamp spawned shapes to fit within the preview box to avoid overlapping neighbors.")]
+    [SerializeField] private bool fitShapesToPreviewBox = true;
+    [Tooltip("Padding inside the preview box when fitting, in world units.")]
+    [SerializeField] private float previewPadding = 0.05f;
+    [Tooltip("Ensure spawn point spacing is at least the preview size + margin to avoid overlaps.")]
+    [SerializeField] private bool enforceMinSpacingFromPreview = true;
+    [Tooltip("Extra margin added on top of preview size for spacing checks (world units).")]
+    [SerializeField] private float spacingMargin = 0.1f;
+
+    [Tooltip("Adjust child sprite sorting orders per slot for clear layering in the tray.")]
+    [SerializeField] private bool setSpawnSortingOrders = true;
+    [SerializeField] private int spawnSortingOrderBase = 0;
+    [SerializeField] private int spawnSortingOrderStep = 1;
+
+    [Tooltip("Clamp the spawn 'pop' so it never exceeds the preview box.")]
+    [SerializeField] private bool clampSpawnEffectToPreview = true;
 
     private void OnEnable()
     {
@@ -70,6 +122,19 @@ public class ShapeSpawner : MonoBehaviour
     private void OnValidate()
     {
         AlignSpawnPointsIfNeeded();
+        // Keep family labels array aligned with prefabs for inspector setup
+        if (shapePrefabs != null)
+        {
+            if (shapeFamilyLabels == null || shapeFamilyLabels.Length != shapePrefabs.Length)
+            {
+                var newArr = new string[shapePrefabs.Length];
+                if (shapeFamilyLabels != null)
+                {
+                    for (int i = 0; i < Mathf.Min(shapeFamilyLabels.Length, newArr.Length); i++) newArr[i] = shapeFamilyLabels[i];
+                }
+                shapeFamilyLabels = newArr;
+            }
+        }
     }
     
     void Start()
@@ -102,6 +167,21 @@ public class ShapeSpawner : MonoBehaviour
     private void AlignSpawnPointsIfNeeded()
     {
         if (spawnPoints == null || spawnPoints.Length < 3) return;
+
+        // Optional spacing enforcement based on preview box
+        if (enforceMinSpacingFromPreview)
+        {
+            if (alignSpawnPointsHorizontally)
+            {
+                float minSpace = previewSize.x + Mathf.Abs(spacingMargin);
+                if (horizontalSpacing < minSpace) horizontalSpacing = minSpace;
+            }
+            else if (alignSpawnPointsVertically)
+            {
+                float minSpace = previewSize.y + Mathf.Abs(spacingMargin);
+                if (verticalSpacing < minSpace) verticalSpacing = minSpace;
+            }
+        }
 
         // Horizontal alignment takes precedence if enabled
         if (alignSpawnPointsHorizontally)
@@ -247,71 +327,201 @@ public class ShapeSpawner : MonoBehaviour
         if (!Application.isPlaying) return;
         allShapesPlaced = false;
         
-        // Clear references to old shapes and reset status cache
         for (int i = 0; i < currentShapes.Length; i++)
         {
             currentShapes[i] = null;
             shapeStatusCache[i] = false;
         }
-        
-        // Spawn 3 new shapes
-        List<GameObject> newlySpawnedShapes = new List<GameObject>();
+
+        if (useDeterministicSelection)
+        {
+            var indices = DetermineNextSetIndices();
+            if (debugSelection)
+            {
+                Debug.Log($"[ShapeSpawner] Next set indices: {indices[0]}, {indices[1]}, {indices[2]} | deferred={deferredIndices.Count} recent={recentIndices.Count} cursor={bagCursor}");
+            }
+            var newlySpawnedShapes = new List<GameObject>(3);
+            for (int i = 0; i < 3; i++)
+            {
+                if (spawnPoints[i] == null) continue;
+                GameObject newShape = SpawnShapeByIndex(indices[i], i);
+                currentShapes[i] = newShape;
+                if (newShape != null) newlySpawnedShapes.Add(newShape);
+                // update recent history
+                if (noRepeatWindow > 0)
+                {
+                    recentIndices.Enqueue(indices[i]);
+                    while (recentIndices.Count > noRepeatWindow) recentIndices.Dequeue();
+                }
+            }
+            ApplyThemesToShapes(newlySpawnedShapes.ToArray());
+            return;
+        }
+
+        // Existing random/adaptive path
+        List<GameObject> newlySpawned = new List<GameObject>();
         for (int i = 0; i < 3; i++)
         {
             if (spawnPoints[i] != null)
             {
                 GameObject newShape = SpawnRandomShape(i);
                 currentShapes[i] = newShape;
-                if (newShape != null)
-                {
-                    newlySpawnedShapes.Add(newShape);
-                }
+                if (newShape != null) newlySpawned.Add(newShape);
             }
         }
-        
-        // Apply themes to all spawned shapes
-        ApplyThemesToShapes(newlySpawnedShapes.ToArray());
+        ApplyThemesToShapes(newlySpawned.ToArray());
     }
 
-    private GameObject SpawnRandomShape(int spawnIndex)
+    private int[] DetermineNextSetIndices()
     {
-        if (!Application.isPlaying) return null;
-        if (shapePrefabs == null || shapePrefabs.Length == 0)
+        int n = shapePrefabs != null ? shapePrefabs.Length : 0;
+        var result = new int[3] { 0, 0, 0 };
+        if (n == 0) return result;
+        RefillBagIfNeeded(n);
+
+        var disallow = new HashSet<int>();
+        var usedFamilies = new HashSet<string>();
+        // avoid duplicates within set
+        for (int i = 0; i < 3; i++)
         {
-            Debug.LogError("No shape prefabs assigned to ShapeSpawner!");
-            return null;
-        }
-        
-        // Use adaptive selector to pick a helpful shape via reflection (avoids hard dependency during lint)
-        GameObject shapePrefab = null;
-        var selectorType = System.Type.GetType("AdaptiveShapeSelector");
-        if (selectorType != null)
-        {
-            var method = selectorType.GetMethod("SelectPrefab", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-            if (method != null)
+            int idx = NextIndexPreferDeferred(n, disallow, allowRepeatIfNeeded: false, familyBlock: preventSameFamilyInSet ? usedFamilies : null);
+            result[i] = idx;
+            if (preventDuplicatesInSet) disallow.Add(idx);
+            if (preventSameFamilyInSet)
             {
-                try
+                var fam = GetFamilyLabel(idx);
+                if (!string.IsNullOrEmpty(fam)) usedFamilies.Add(fam);
+            }
+        }
+
+        if (ensurePlaceableInSet)
+        {
+            bool anyPlaceable = false;
+            var gm = GetGridManager();
+            for (int i = 0; i < 3; i++)
+            {
+                if (IsPrefabPlaceable(result[i], gm)) { anyPlaceable = true; break; }
+            }
+            if (!anyPlaceable)
+            {
+                // find a placeable candidate from bag, replace last slot
+                for (int tries = 0; tries < n; tries++)
                 {
-                    shapePrefab = (GameObject)method.Invoke(null, new object[] { shapePrefabs, assistLevel });
-                }
-                catch (System.Exception ex)
-                {
-                    Debug.LogWarning($"Adaptive selection failed: {ex.Message}. Falling back to random.");
+                    HashSet<string> famBlock = null;
+                    if (preventSameFamilyInSet)
+                    {
+                        famBlock = new HashSet<string>();
+                        for (int k = 0; k < 3; k++) famBlock.Add(GetFamilyLabel(result[k]));
+                    }
+                    int candidate = NextIndexPreferDeferred(n, preventDuplicatesInSet ? new HashSet<int>(result) : null, allowRepeatIfNeeded: true, familyBlock: famBlock);
+                    if (IsPrefabPlaceable(candidate, gm))
+                    {
+                        // Defer the replaced index so it shows up soon in next sets
+                        int replaced = result[2];
+                        if (replaced != candidate) deferredIndices.Enqueue(replaced);
+                        result[2] = candidate;
+                        break;
+                    }
                 }
             }
         }
-        if (shapePrefab == null)
+        return result;
+    }
+
+    private void RefillBagIfNeeded(int n)
+    {
+        if (bag.Count != n)
         {
-            shapePrefab = shapePrefabs[Random.Range(0, shapePrefabs.Length)];
+            bag.Clear();
+            for (int i = 0; i < n; i++) bag.Add(i);
+            bagCursor = 0;
         }
-        
-        if (shapePrefab == null)
+        if (bagCursor >= bag.Count) bagCursor = 0;
+    }
+
+    private int NextIndexFromBag(int n, HashSet<int> disallow, bool allowRepeatIfNeeded = false, HashSet<string> familyBlock = null)
+    {
+        // Try scanning the bag linearly starting at cursor, respecting recent history and disallow set
+        for (int pass = 0; pass < 2; pass++)
         {
-            Debug.LogError("Selector returned null shape prefab!");
-            return null;
+            for (int step = 0; step < n; step++)
+            {
+                int idx = bag[(bagCursor + step) % n];
+                if (disallow != null && disallow.Contains(idx)) continue;
+                if (familyBlock != null)
+                {
+                    var fam = GetFamilyLabel(idx);
+                    if (!string.IsNullOrEmpty(fam) && familyBlock.Contains(fam)) continue;
+                }
+                if (!allowRepeatIfNeeded && noRepeatWindow > 0 && recentIndices.Contains(idx)) continue;
+                bagCursor = (bagCursor + step + 1) % n;
+                return idx;
+            }
+            // On second pass, ignore recent history to guarantee progress
+            allowRepeatIfNeeded = true;
         }
-        
-        // Spawn at the designated spawn point
+        int fallback = bag[bagCursor];
+        bagCursor = (bagCursor + 1) % n;
+        return fallback;
+    }
+
+    private int NextIndexPreferDeferred(int n, HashSet<int> disallow, bool allowRepeatIfNeeded = false, HashSet<string> familyBlock = null)
+    {
+        // Try deferred indices first to avoid starving shapes that were replaced previously
+        int tries = deferredIndices.Count;
+        while (tries-- > 0 && deferredIndices.Count > 0)
+        {
+            int idx = deferredIndices.Dequeue();
+            if (disallow != null && disallow.Contains(idx)) { deferredIndices.Enqueue(idx); continue; }
+            if (familyBlock != null)
+            {
+                var fam = GetFamilyLabel(idx);
+                if (!string.IsNullOrEmpty(fam) && familyBlock.Contains(fam)) { deferredIndices.Enqueue(idx); continue; }
+            }
+            if (!allowRepeatIfNeeded && noRepeatWindow > 0 && recentIndices.Contains(idx)) { deferredIndices.Enqueue(idx); continue; }
+            // Valid deferred pick
+            return idx;
+        }
+        // Fallback to bag
+        return NextIndexFromBag(n, disallow, allowRepeatIfNeeded, familyBlock);
+    }
+
+    private string GetFamilyLabel(int prefabIndex)
+    {
+        if (shapePrefabs == null || prefabIndex < 0 || prefabIndex >= shapePrefabs.Length) return string.Empty;
+        if (shapeFamilyLabels != null && shapeFamilyLabels.Length == shapePrefabs.Length)
+        {
+            var lab = shapeFamilyLabels[prefabIndex];
+            if (!string.IsNullOrEmpty(lab)) return lab.Trim();
+        }
+        // Fallback: derive a family from prefab name prefix up to first '_' or '-'
+        var name = shapePrefabs[prefabIndex] != null ? shapePrefabs[prefabIndex].name : string.Empty;
+        if (string.IsNullOrEmpty(name)) return string.Empty;
+        int cut = name.IndexOf('_');
+        if (cut < 0) cut = name.IndexOf('-');
+        return cut > 0 ? name.Substring(0, cut) : name;
+    }
+
+    private bool IsPrefabPlaceable(int prefabIndex, Gameplay.GridManager gm)
+    {
+        if (gm == null || shapePrefabs == null || prefabIndex < 0 || prefabIndex >= shapePrefabs.Length) return false;
+        var offs = GetOffsets(shapePrefabs[prefabIndex]);
+        if (offs == null || offs.Count == 0) return false;
+        int W = gm.GridWidth, H = gm.GridHeight;
+        for (int x = 0; x < W; x++)
+        {
+            for (int y = 0; y < H; y++)
+            {
+                if (gm.CanPlaceShape(new Vector2Int(x, y), offs)) return true;
+            }
+        }
+        return false;
+    }
+
+    private GameObject SpawnShapeByIndex(int prefabIndex, int spawnIndex)
+    {
+        if (shapePrefabs == null || prefabIndex < 0 || prefabIndex >= shapePrefabs.Length) return null;
+        var shapePrefab = shapePrefabs[prefabIndex];
         Vector3 spawnPosition = spawnPoints[spawnIndex].position;
         GameObject spawnedShape = Instantiate(shapePrefab, spawnPosition, Quaternion.identity);
 
@@ -319,22 +529,187 @@ public class ShapeSpawner : MonoBehaviour
         Vector3 baseScale = GetBaseScaleForSlot(spawnIndex);
         if (baseScale == Vector3.zero) baseScale = Vector3.one;
         spawnedShape.transform.localScale = baseScale;
-        
+
+        // Apply an orientation variant first so centering/fitting uses final layout
+        var shapeComponent = spawnedShape.GetComponent<Core.Shape>();
+        if (enableOrientationVariants && shapeComponent != null)
+        {
+            TryApplyOrientationVariant(shapeComponent, prefabIndex, spawnIndex);
+            shapeComponent.CacheTileRenderers();
+        }
+
         // Center in gizmo if requested
         if (centerSpawnedShapesInGizmo)
         {
             TryCenterShapeToSpawn(spawnedShape, spawnPosition);
         }
-        
-        var shapeComponent = spawnedShape.GetComponent<Core.Shape>();
+
+        // Fit within preview box to avoid overlaps across neighbors
+        if (fitShapesToPreviewBox)
+        {
+            FitShapeIntoPreviewBox(spawnedShape, spawnIndex);
+            if (centerSpawnedShapesInGizmo)
+            {
+                TryCenterByRenderers(spawnedShape, spawnPosition);
+            }
+        }
+
+        // Sorting orders per slot for clarity
+        if (setSpawnSortingOrders)
+        {
+            ApplySortingForSpawn(spawnedShape, spawnIndex);
+        }
+
         var dragHandler = spawnedShape.GetComponent<Gameplay.DragHandler>();
         if (shapeComponent != null && dragHandler != null)
         {
             spawnedShape.name = $"Shape_{spawnIndex}_{Random.Range(1000, 9999)}";
         }
-        
-        StartCoroutine(SpawnEffect(spawnedShape, baseScale));
+
+        // Use the fitted final scale as the base for the spawn effect so it doesn't override fitting
+        Vector3 fittedScale = spawnedShape.transform.localScale;
+        StartCoroutine(SpawnEffect(spawnedShape, fittedScale));
         return spawnedShape;
+    }
+
+    private void TryApplyOrientationVariant(Core.Shape shape, int prefabIndex, int spawnIndex)
+    {
+        var baseOffsets = new List<Vector2Int>(shape.ShapeOffsets);
+        if (baseOffsets == null || baseOffsets.Count == 0) return;
+
+        // Build a deterministic pool of variants per prefab index and spawn slot
+        var variants = BuildVariants(baseOffsets);
+        if (variants.Count <= 1) return;
+
+        // Deterministic pick by hashing prefabIndex, spawnIndex, and a simple counter from bagCursor
+        int seed = prefabIndex * 73856093 ^ spawnIndex * 19349663 ^ bagCursor * 83492791;
+        if (!useDeterministicSelection)
+        {
+            seed = (int)(Random.value * int.MaxValue);
+        }
+        int pick = Mathf.Abs(seed) % variants.Count;
+        var chosen = variants[pick];
+        // Avoid identity variant if possible
+        if (AreOffsetsEqual(baseOffsets, chosen) && variants.Count > 1)
+        {
+            pick = (pick + 1) % variants.Count;
+            chosen = variants[pick];
+        }
+        shape.ApplyOffsetsAndRealign(chosen);
+    }
+
+    private bool AreOffsetsEqual(List<Vector2Int> a, List<Vector2Int> b)
+    {
+        if (a == null || b == null || a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+        {
+            if (a[i] != b[i]) return false;
+        }
+        return true;
+    }
+
+    private List<List<Vector2Int>> BuildVariants(List<Vector2Int> baseOffsets)
+    {
+        var set = new List<List<Vector2Int>>();
+        void AddUnique(List<Vector2Int> offs)
+        {
+            // Keep ordering stable by sorting by x then y to detect duplicates
+            offs.Sort((p, q) => p.x != q.x ? p.x.CompareTo(q.x) : p.y.CompareTo(q.y));
+            foreach (var s in set)
+            {
+                if (AreOffsetsEqual(s, offs)) return;
+            }
+            set.Add(new List<Vector2Int>(offs));
+        }
+
+        // Identity
+        AddUnique(new List<Vector2Int>(baseOffsets));
+
+        // Rotations
+        if (allowRotate90) AddUnique(Rotate(baseOffsets, 90));
+        if (allowRotate180) AddUnique(Rotate(baseOffsets, 180));
+        if (allowRotate270) AddUnique(Rotate(baseOffsets, 270));
+
+        // Mirrors
+        if (allowMirrorX) AddUnique(Mirror(baseOffsets, x: true));
+        if (allowMirrorY) AddUnique(Mirror(baseOffsets, x: false));
+
+        return set;
+    }
+
+    private List<Vector2Int> Rotate(List<Vector2Int> offs, int degrees)
+    {
+        var res = new List<Vector2Int>(offs.Count);
+        foreach (var o in offs)
+        {
+            switch (degrees)
+            {
+                case 90: res.Add(new Vector2Int(-o.y, o.x)); break;
+                case 180: res.Add(new Vector2Int(-o.x, -o.y)); break;
+                case 270: res.Add(new Vector2Int(o.y, -o.x)); break;
+                default: res.Add(o); break;
+            }
+        }
+        Normalize(res);
+        return res;
+    }
+
+    private List<Vector2Int> Mirror(List<Vector2Int> offs, bool x)
+    {
+        var res = new List<Vector2Int>(offs.Count);
+        foreach (var o in offs)
+        {
+            res.Add(x ? new Vector2Int(-o.x, o.y) : new Vector2Int(o.x, -o.y));
+        }
+        Normalize(res);
+        return res;
+    }
+
+    private void Normalize(List<Vector2Int> offs)
+    {
+        // Shift so the minimum x,y becomes 0,0 to keep origin alignment sensible
+        int minX = int.MaxValue, minY = int.MaxValue;
+        for (int i = 0; i < offs.Count; i++)
+        {
+            if (offs[i].x < minX) minX = offs[i].x;
+            if (offs[i].y < minY) minY = offs[i].y;
+        }
+        for (int i = 0; i < offs.Count; i++)
+        {
+            offs[i] = new Vector2Int(offs[i].x - minX, offs[i].y - minY);
+        }
+    }
+
+
+    private Gameplay.GridManager GetGridManager()
+    {
+        if (ColorBlast.Core.Architecture.Services.Has<Gameplay.GridManager>())
+            return ColorBlast.Core.Architecture.Services.Get<Gameplay.GridManager>();
+        return Object.FindFirstObjectByType<Gameplay.GridManager>();
+    }
+
+    private List<Vector2Int> GetOffsets(GameObject prefab)
+    {
+        if (prefab == null) return null;
+        var s = prefab.GetComponent<Core.Shape>();
+        return s != null ? s.ShapeOffsets : null;
+    }
+
+    private int CountValidPlacements(Gameplay.GridManager gm, List<Vector2Int> offs)
+    {
+        if (gm == null || offs == null || offs.Count == 0) return 0;
+        int W = gm.GridWidth;
+        int H = gm.GridHeight;
+        int count = 0;
+        for (int x = 0; x < W; x++)
+        {
+            for (int y = 0; y < H; y++)
+            {
+                var start = new Vector2Int(x, y);
+                if (gm.CanPlaceShape(start, offs)) count++;
+            }
+        }
+        return count;
     }
 
     private Vector3 GetBaseScaleForSlot(int index)
@@ -350,8 +725,17 @@ public class ShapeSpawner : MonoBehaviour
     private System.Collections.IEnumerator SpawnEffect(GameObject shape, Vector3 baseScale)
     {
         if (shape == null) yield break;
+        // If clamped, don't allow growth beyond baseScale; just ease from a smaller value back to base
         Vector3 startScale = spawnEffectFromBaseScale ? (baseScale * minSpawnScale) : (Vector3.one * minSpawnScale);
-        Vector3 targetScale = spawnEffectFromBaseScale ? (baseScale * maxSpawnScale) : (baseScale * maxSpawnScale);
+        Vector3 targetScale;
+        if (clampSpawnEffectToPreview)
+        {
+            targetScale = baseScale; // no growth beyond fitted size
+        }
+        else
+        {
+            targetScale = spawnEffectFromBaseScale ? (baseScale * maxSpawnScale) : (baseScale * maxSpawnScale);
+        }
         shape.transform.localScale = startScale;
         float elapsed = 0f;
         while (elapsed < spawnEffectDuration)
@@ -431,6 +815,7 @@ public class ShapeSpawner : MonoBehaviour
     }
 
     // Public methods for manual control
+    [ContextMenu("Force Spawn New Shapes")]
     public void ForceSpawnNewShapes()
     {
         if (!Application.isPlaying) return;
@@ -449,6 +834,16 @@ public class ShapeSpawner : MonoBehaviour
             }
         }
         allShapesPlaced = false;
+    }
+
+    // Optional: reset deterministic queues/bag, e.g., when restarting a level
+    [ContextMenu("Reset Deterministic State")]
+    public void ResetDeterministicState()
+    {
+        bagCursor = 0;
+        bag.Clear();
+        recentIndices.Clear();
+        deferredIndices.Clear();
     }
     
     public bool AreAllShapesPlaced()
@@ -528,5 +923,83 @@ public class ShapeSpawner : MonoBehaviour
     public void SetShapePrefabs(GameObject[] prefabs)
     {
         shapePrefabs = prefabs;
+    }
+
+    // Random/adaptive spawn helper used when deterministic mode is off
+    private GameObject SpawnRandomShape(int spawnIndex)
+    {
+        if (!Application.isPlaying) return null;
+        if (shapePrefabs == null || shapePrefabs.Length == 0)
+        {
+            Debug.LogError("No shape prefabs assigned to ShapeSpawner!");
+            return null;
+        }
+
+        int selectedIndex = -1;
+        // Try adaptive helper if present
+        var selectorType = System.Type.GetType("AdaptiveShapeSelector");
+        if (selectorType != null)
+        {
+            var method = selectorType.GetMethod("SelectPrefab", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (method != null)
+            {
+                try
+                {
+                    var prefab = (GameObject)method.Invoke(null, new object[] { shapePrefabs, assistLevel });
+                    if (prefab != null)
+                    {
+                        selectedIndex = System.Array.IndexOf(shapePrefabs, prefab);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"Adaptive selection failed: {ex.Message}. Falling back to random.");
+                }
+            }
+        }
+
+        if (selectedIndex < 0)
+        {
+            selectedIndex = Random.Range(0, shapePrefabs.Length);
+        }
+
+        return SpawnShapeByIndex(selectedIndex, spawnIndex);
+    }
+
+    private void FitShapeIntoPreviewBox(GameObject shapeGO, int spawnIndex)
+    {
+        if (shapeGO == null) return;
+        var srs = shapeGO.GetComponentsInChildren<SpriteRenderer>();
+        if (srs == null || srs.Length == 0) return;
+        Bounds b = new Bounds(srs[0].bounds.center, Vector3.zero);
+        for (int i = 0; i < srs.Length; i++)
+        {
+            if (srs[i] != null) b.Encapsulate(srs[i].bounds);
+        }
+        // Current world size
+        float bw = Mathf.Max(0.0001f, b.size.x);
+        float bh = Mathf.Max(0.0001f, b.size.y);
+
+        // Allowed box size (world units)
+        float maxW = Mathf.Max(0.0001f, previewSize.x - Mathf.Abs(previewPadding));
+        float maxH = Mathf.Max(0.0001f, previewSize.y - Mathf.Abs(previewPadding));
+        float scale = Mathf.Min(maxW / bw, maxH / bh);
+        if (scale < 1f)
+        {
+            shapeGO.transform.localScale *= scale;
+        }
+    }
+
+    private void ApplySortingForSpawn(GameObject shapeGO, int spawnIndex)
+    {
+        if (shapeGO == null) return;
+        var srs = shapeGO.GetComponentsInChildren<SpriteRenderer>(true);
+        if (srs == null) return;
+        int add = spawnSortingOrderBase + spawnIndex * spawnSortingOrderStep;
+        for (int i = 0; i < srs.Length; i++)
+        {
+            if (srs[i] == null) continue;
+            srs[i].sortingOrder += add;
+        }
     }
 }
