@@ -882,13 +882,15 @@ public class ShapeSpawner : MonoBehaviour
         else
             gm = Object.FindFirstObjectByType<Gameplay.GridManager>();
         if (gm == null) return true;
-
+        bool foundUnplacedShape = false;
         for (int i = 0; i < currentShapes.Length; i++)
         {
             var go = currentShapes[i];
-            if (go == null) continue;
+            if (go == null) continue; // destroyed counts as placed
             var s = go.GetComponent<Core.Shape>();
             if (s == null) continue;
+            if (s.IsPlaced) continue; // Ignore shapes already locked on the board
+            foundUnplacedShape = true;
             var offs = s.ShapeOffsets;
             if (offs == null || offs.Count == 0) continue;
             int W = gm.GridWidth, H = gm.GridHeight;
@@ -896,11 +898,33 @@ public class ShapeSpawner : MonoBehaviour
             {
                 for (int y = 0; y < H; y++)
                 {
-                    if (gm.CanPlaceShape(new Vector2Int(x, y), offs)) return true;
+                    if (gm.CanPlaceShape(new Vector2Int(x, y), offs)) return true; // A valid move exists
                 }
             }
         }
+        // If there are no unplaced shapes, we treat it as "valid move exists / waiting for respawn" to avoid premature game over
+        if (!foundUnplacedShape) return true;
+        // We had at least one unplaced shape but found no placements -> no valid moves
         return false;
+    }
+
+    // Destroy only tray shapes that have NOT yet been placed on the grid (to avoid clearing the board)
+    public void DestroyUnplacedTrayShapes()
+    {
+        if (!Application.isPlaying) return;
+        for (int i = 0; i < currentShapes.Length; i++)
+        {
+            var go = currentShapes[i];
+            if (go == null) continue;
+            var s = go.GetComponent<Core.Shape>();
+            if (s != null && !s.IsPlaced)
+            {
+                Destroy(go);
+                currentShapes[i] = null;
+                shapeStatusCache[i] = false;
+            }
+        }
+        allShapesPlaced = false; // allow new spawn logic
     }
     
     // Helper method to set spawn points programmatically
