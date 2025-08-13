@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
+using DG.Tweening;
 
 /// <summary>
 /// Simple sprite theme for shapes
@@ -319,10 +321,103 @@ public class ShapeSpriteManager : MonoBehaviour
         var clip = theme != null && theme.clearSound != null ? theme.clearSound : defaultClearSound;
         if (clip != null)
         {
-            AudioSource.PlayClipAtPoint(clip, worldPosition, 1f);
+            PlaySfxRespectingMute(worldPosition, clip, 1f);
         }
     }
 
+    /// <summary>
+    /// Spawn a clear effect using a specific tile sprite/color when no prefab is provided, for material-consistent shattering.
+    /// Falls back to prefab path if available.
+    /// </summary>
+    public void PlayClearEffectAt(Vector3 worldPosition, SpriteTheme theme, Sprite tileSprite, Color tileColor)
+    {
+        // If a prefab is defined, prefer it
+        if (theme != null && theme.clearEffectPrefab != null)
+        {
+            PlayClearEffectAt(worldPosition, theme);
+            return;
+        }
+
+        // Sprite-based shard burst (no ParticleSystem) to avoid renderer property sheet issues
+        GameObject parent = new GameObject("TileClearFX_Shards");
+        parent.transform.position = worldPosition;
+        int count = Random.Range(10, 16);
+        for (int i = 0; i < count; i++)
+        {
+            var shard = new GameObject("Shard");
+            shard.transform.SetParent(parent.transform, worldPositionStays: false);
+            var sr = shard.AddComponent<SpriteRenderer>();
+            sr.sprite = tileSprite;
+            sr.color = (tileColor.a > 0 ? tileColor : Color.white);
+            sr.sortingOrder = 200;
+            // random scale shards a bit
+            float s = Random.Range(0.35f, 0.6f);
+            shard.transform.localScale = new Vector3(s, s, 1f);
+
+            // Animate using DOTween (move, rotate, fade, then cleanup)
+            float life = Random.Range(0.45f, 0.7f);
+            Vector2 dir = Random.insideUnitCircle.normalized;
+            float dist = Random.Range(0.4f, 1.0f);
+            Vector3 endPos = worldPosition + new Vector3(dir.x, dir.y, 0f) * dist + new Vector3(0f, Random.Range(-0.6f, -1.2f), 0f);
+            float rotZ = shard.transform.eulerAngles.z + Random.Range(180f, 720f) * (Random.value < 0.5f ? -1f : 1f);
+
+            var seq = DOTween.Sequence();
+            seq.Join(shard.transform.DOMove(endPos, life).SetEase(Ease.OutQuad));
+            seq.Join(shard.transform.DORotate(new Vector3(0f, 0f, rotZ), life, RotateMode.FastBeyond360).SetEase(Ease.OutSine));
+            if (sr != null)
+            {
+                var c = sr.color;
+                seq.Join(sr.DOFade(0f, life).From(c.a).SetEase(Ease.InQuad));
+            }
+            seq.OnComplete(() => Object.Destroy(shard));
+        }
+        Object.Destroy(parent, 1.5f);
+
+    var clip = theme != null && theme.clearSound != null ? theme.clearSound : defaultClearSound;
+    if (clip != null) PlaySfxRespectingMute(worldPosition, clip, 1f);
+    }
+
+    /// <summary>
+    /// Play a small placement pop/bounce animation on a shape's tiles.
+    /// </summary>
+    public void PlayPlacementAnimation(Core.Shape shape)
+    {
+        if (shape == null) return;
+        StartCoroutine(PlacementPopCoroutine(shape));
+    }
+
+    private IEnumerator PlacementPopCoroutine(Core.Shape shape)
+    {
+        shape.CacheTileRenderers();
+        var tiles = shape.TileRenderers;
+        if (tiles == null || tiles.Length == 0) yield break;
+
+        float dur = 0.18f;
+        float elapsed = 0f;
+        // Capture initial local scales
+        var initial = new Vector3[tiles.Length];
+        for (int i = 0; i < tiles.Length; i++) initial[i] = tiles[i] != null ? tiles[i].transform.localScale : Vector3.one;
+
+        while (elapsed < dur)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / dur;
+            // Ease-out elastic lite
+            float s = 1f + 0.15f * Mathf.Sin(t * Mathf.PI);
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                if (tiles[i] == null) continue;
+                tiles[i].transform.localScale = initial[i] * s;
+            }
+            yield return null;
+        }
+        // Restore
+        for (int i = 0; i < tiles.Length; i++)
+        {
+            if (tiles[i] == null) continue;
+            tiles[i].transform.localScale = initial[i];
+        }
+    }
     /// <summary>
     /// Play placement sound at position using theme or default fallback.
     /// </summary>
@@ -331,8 +426,16 @@ public class ShapeSpriteManager : MonoBehaviour
         var clip = theme != null && theme.placementSound != null ? theme.placementSound : defaultPlacementSound;
         if (clip != null)
         {
-            AudioSource.PlayClipAtPoint(clip, worldPosition, 1f);
+            PlaySfxRespectingMute(worldPosition, clip, 1f);
         }
+    }
+
+    private const string SfxMuteKey = "Audio.SfxMuted";
+    private static bool IsSfxMuted() => PlayerPrefs.GetInt(SfxMuteKey, 0) == 1;
+    private static void PlaySfxRespectingMute(Vector3 position, AudioClip clip, float volume = 1f)
+    {
+        if (clip == null || IsSfxMuted()) return;
+        AudioSource.PlayClipAtPoint(clip, position, Mathf.Clamp01(volume));
     }
     
     /// <summary>

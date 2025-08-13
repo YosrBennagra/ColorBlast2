@@ -111,10 +111,6 @@ namespace ColorBlast.Gameplay.State
                 case GameState.Paused:
                     OnEnterPaused();
                     break;
-                
-                case GameState.GameOver:
-                    OnEnterGameOver();
-                    break;
             }
 
             // Handle state exits
@@ -130,10 +126,6 @@ namespace ColorBlast.Gameplay.State
                 
                 case GameState.Paused:
                     OnExitPaused();
-                    break;
-                
-                case GameState.GameOver:
-                    OnExitGameOver();
                     break;
             }
         }
@@ -174,21 +166,6 @@ namespace ColorBlast.Gameplay.State
             }
         }
 
-        private void OnEnterGameOver()
-        {
-            // Disable input
-            var inputHandler = Services.Get<IInputHandler>();
-            inputHandler?.DisableInput();
-            
-            // Play game over audio
-            EventBus.Publish(new AudioEvent(ColorBlast.Core.Events.AudioType.GameOver));
-            
-            if (debugMode)
-            {
-                Debug.Log("Entered GameOver state");
-            }
-        }
-
         private void OnExitMenu()
         {
             if (debugMode)
@@ -213,13 +190,7 @@ namespace ColorBlast.Gameplay.State
             }
         }
 
-        private void OnExitGameOver()
-        {
-            if (debugMode)
-            {
-                Debug.Log("Exited GameOver state");
-            }
-        }
+        // State management methods
 
         private void ClearGameState()
         {
@@ -257,14 +228,6 @@ namespace ColorBlast.Gameplay.State
         }
 
         /// <summary>
-        /// Check if the game is over
-        /// </summary>
-        public bool IsGameOver()
-        {
-            return currentState == GameState.GameOver;
-        }
-
-        /// <summary>
         /// Toggle pause state
         /// </summary>
         public void TogglePause()
@@ -290,7 +253,6 @@ namespace ColorBlast.Gameplay.State
             Debug.Log($"Current State: {currentState}");
             Debug.Log($"Is Playable: {IsPlayable()}");
             Debug.Log($"Is Paused: {IsPaused()}");
-            Debug.Log($"Is Game Over: {IsGameOver()}");
         }
 
         [ContextMenu("Start Game")]
@@ -309,12 +271,6 @@ namespace ColorBlast.Gameplay.State
         public void DebugResumeGame()
         {
             ResumeGame();
-        }
-
-        [ContextMenu("Game Over")]
-        public void DebugGameOver()
-        {
-            ChangeState(GameState.GameOver);
         }
 
         [ContextMenu("Restart Game")]

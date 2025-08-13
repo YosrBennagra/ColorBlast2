@@ -18,6 +18,16 @@ namespace Gameplay
         [SerializeField] private bool useReturnAnimation = true;
         [SerializeField] private bool showInvalidPlacementFeedback = true;
 
+    [Header("Drag Gating")]
+    [Tooltip("Block dragging for a short time right after spawn (e.g., while pop-in animation plays).")]
+    [SerializeField] private float dragLockDurationOnSpawn = 0.3f;
+    [Tooltip("Require the pointer to move at least this many screen pixels before starting a drag.")]
+    [SerializeField] private float dragStartThresholdPixels = 12f;
+    [Tooltip("Apply the movement threshold only for touch drags. If false, applies to mouse too.")]
+    [SerializeField] private bool thresholdOnlyOnTouch = true;
+    [Tooltip("If true, begin dragging immediately on pointer down when pressing the shape (makes it pop up instantly).")]
+    [SerializeField] private bool startDragOnPointerDown = true;
+
         [Header("Input")]
         [Tooltip("Ignore pointer/touch when over UI elements.")]
         [SerializeField] private bool ignoreUI = true;
@@ -62,6 +72,10 @@ namespace Gameplay
         private int[] originalSortingOrders;
     private int[] originalSortingLayerIDs;
     private Vector3 preDragScale;
+    private float dragUnlockTime;
+    private bool pressPrimed = false;
+    private Vector2 primedPressScreenPos;
+    private int primedTouchId = -1;
         
     // Preview state
     private GameObject previewRoot;
@@ -71,6 +85,7 @@ namespace Gameplay
         {
             shape = GetComponent<Core.Shape>();
             cam = Camera.main;
+            dragUnlockTime = Time.time + Mathf.Max(0f, dragLockDurationOnSpawn);
             cachedRenderers = GetComponentsInChildren<SpriteRenderer>(true);
             if (cachedRenderers != null && cachedRenderers.Length > 0)
             {
@@ -92,18 +107,87 @@ namespace Gameplay
             if (shape != null && shape.IsPlaced) return;
             if (cam == null) cam = Camera.main;
             
-            // Start drag
+            // Start drag (gated by cooldown and movement threshold)
             if (!isDragging)
             {
-                if (WasPointerPressedThisFrame(out Vector2 screenPos, out int touchId))
+                // Prime a press if allowed
+                if (WasPointerPressedThisFrame(out Vector2 pressScreen, out int pressId))
                 {
-                    if (ignoreUI && IsOverUI(touchId)) return;
-                    TryStartDrag(ScreenToWorld(screenPos));
-                    if (isDragging)
+                    if (ignoreUI && IsOverUI(pressId)) return;
+                    if (Time.time < dragUnlockTime) return; // still locked
+                    if (!IsPointerOnShape(pressScreen)) return;
+                    // Either start drag immediately for instant pop, or prime for thresholded start
+                    if (startDragOnPointerDown)
                     {
-                        activeTouchId = touchId; // -1 for mouse, or touch id for touch
+                        Vector3 world = ScreenToWorld(pressScreen);
+                        StartDrag(world);
+                        activeTouchId = pressId;
                         isTouchDrag = activeTouchId >= 0;
                         if (boostSortingOrderOnDrag) BoostSortingOrder();
+                        preDragScale = transform.localScale;
+                        if (scaleToPlacedOnDrag)
+                        {
+                            transform.localScale = placedScale;
+                        }
+                        // Initial pop this frame using lift even before movement
+                        Vector2 initialScreen = pressScreen;
+                        if (liftOnDrag && (!liftOnlyOnTouch || isTouchDrag))
+                        {
+                            float lift = dragLiftScreenPixels;
+                            if (autoLiftByBounds)
+                            {
+                                lift = Mathf.Max(dragLiftScreenPixels, ComputeAutoLiftPixels());
+                            }
+                            initialScreen.y += lift;
+                        }
+                        UpdateDrag(ScreenToWorld(initialScreen));
+                        // Create initial preview
+                        UpdatePlacementPreview();
+                        pressPrimed = false;
+                        primedTouchId = -1;
+                    }
+                    else
+                    {
+                        pressPrimed = true;
+                        primedPressScreenPos = pressScreen;
+                        primedTouchId = pressId; // -1 mouse, >=0 touch id
+                    }
+                }
+
+                // If primed, check movement threshold to actually start dragging
+                if (pressPrimed)
+                {
+                    if (IsPointerDown(primedTouchId))
+                    {
+                        if (TryGetPointerPosition(primedTouchId, out Vector2 curScreen))
+                        {
+                            float moved = (curScreen - primedPressScreenPos).magnitude;
+                            bool applyThreshold = (!thresholdOnlyOnTouch) || (primedTouchId >= 0);
+                            if (!applyThreshold || moved >= dragStartThresholdPixels)
+                            {
+                                // Start drag now
+                                Vector3 world = ScreenToWorld(curScreen);
+                                StartDrag(world);
+                                activeTouchId = primedTouchId;
+                                isTouchDrag = activeTouchId >= 0;
+                                if (boostSortingOrderOnDrag) BoostSortingOrder();
+                                // Switch to placed scale if requested
+                                preDragScale = transform.localScale;
+                                if (scaleToPlacedOnDrag)
+                                {
+                                    transform.localScale = placedScale;
+                                }
+                                // Create initial preview
+                                UpdatePlacementPreview();
+                                pressPrimed = false;
+                            }
+                        }
+                    }
+                    else if (WasPointerReleasedThisFrame(primedTouchId))
+                    {
+                        // Tap without moving enough: cancel
+                        pressPrimed = false;
+                        primedTouchId = -1;
                     }
                 }
             }
@@ -406,16 +490,42 @@ namespace Gameplay
         
         private Bounds GetBounds()
         {
+            // Prefer combined bounds of child SpriteRenderers for accurate hit testing
+            var srs = GetComponentsInChildren<SpriteRenderer>(true);
+            if (srs != null && srs.Length > 0)
+            {
+                Bounds b = new Bounds(srs[0].bounds.center, Vector3.zero);
+                for (int i = 0; i < srs.Length; i++)
+                {
+                    if (srs[i] == null) continue;
+                    b.Encapsulate(srs[i].bounds);
+                }
+                return b;
+            }
+
             var renderer = GetComponent<Renderer>();
             if (renderer != null) return renderer.bounds;
-            
+
             var col2D = GetComponent<Collider2D>();
             if (col2D != null) return col2D.bounds;
-            
+
             var col3D = GetComponent<Collider>();
             if (col3D != null) return col3D.bounds;
-            
+
             return new Bounds();
+        }
+
+        private bool IsPointerOnShape(Vector2 screenPos)
+        {
+            Vector3 world = ScreenToWorld(screenPos);
+            var bounds = GetBounds();
+            if (bounds.size == Vector3.zero) return false;
+            return bounds.Contains(new Vector3(world.x, world.y, bounds.center.z));
+        }
+
+        public void SetDragLock(float seconds)
+        {
+            dragUnlockTime = Mathf.Max(dragUnlockTime, Time.time + Mathf.Max(0f, seconds));
         }
 
         private void UpdatePlacementPreview()

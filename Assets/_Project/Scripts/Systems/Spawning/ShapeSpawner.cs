@@ -871,6 +871,37 @@ public class ShapeSpawner : MonoBehaviour
         }
         return count;
     }
+
+    // Check if any current tray shape can be placed somewhere on the grid
+    public bool HasAnyValidMove()
+    {
+        if (!Application.isPlaying) return true;
+        Gameplay.GridManager gm = null;
+        if (ColorBlast.Core.Architecture.Services.Has<Gameplay.GridManager>())
+            gm = ColorBlast.Core.Architecture.Services.Get<Gameplay.GridManager>();
+        else
+            gm = Object.FindFirstObjectByType<Gameplay.GridManager>();
+        if (gm == null) return true;
+
+        for (int i = 0; i < currentShapes.Length; i++)
+        {
+            var go = currentShapes[i];
+            if (go == null) continue;
+            var s = go.GetComponent<Core.Shape>();
+            if (s == null) continue;
+            var offs = s.ShapeOffsets;
+            if (offs == null || offs.Count == 0) continue;
+            int W = gm.GridWidth, H = gm.GridHeight;
+            for (int x = 0; x < W; x++)
+            {
+                for (int y = 0; y < H; y++)
+                {
+                    if (gm.CanPlaceShape(new Vector2Int(x, y), offs)) return true;
+                }
+            }
+        }
+        return false;
+    }
     
     // Helper method to set spawn points programmatically
     public void SetSpawnPoints(Transform[] points)

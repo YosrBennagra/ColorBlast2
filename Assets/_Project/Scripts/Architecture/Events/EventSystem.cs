@@ -189,7 +189,6 @@ namespace ColorBlast.Core.Events
         ShapePlaced,
         LineCleared,
         ShapeDestroyed,
-        InvalidPlacement,
-        GameOver
+        InvalidPlacement
     }
 }

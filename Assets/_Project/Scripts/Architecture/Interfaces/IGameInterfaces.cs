@@ -111,7 +111,6 @@ namespace ColorBlast.Core.Data
     {
         Playing,
         Paused,
-        GameOver,
         Menu
     }
 }

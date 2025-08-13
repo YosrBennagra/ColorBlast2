@@ -65,12 +65,19 @@ namespace Gameplay
                 }
             }
             
-            if (!strictBoundsChecking && !strictOccupancyChecking)
+            // For strict checking, all tiles must be valid
+            if (strictBoundsChecking && strictOccupancyChecking)
             {
-                return allowPartialOverlap ? validTiles > 0 : validTiles == totalTiles;
+                bool canPlace = validTiles == totalTiles;
+                if (!canPlace)
+                {
+                    Debug.Log($"PlacementSystem: Cannot place shape at ({gridPosition.x}, {gridPosition.y}) - only {validTiles}/{totalTiles} tiles valid");
+                }
+                return canPlace;
             }
             
-            return true;
+            // For non-strict checking, use allowPartialOverlap setting
+            return allowPartialOverlap ? validTiles > 0 : validTiles == totalTiles;
         }
         
         public bool TryPlaceShape(Core.Shape shape)
@@ -97,6 +104,13 @@ namespace Gameplay
             
             // Mark as placed
             shape.MarkAsPlaced();
+
+            // Award score for shape placement
+            var scoreManager = GameObject.FindAnyObjectByType<ColorBlast2.Systems.Scoring.ScoreManager>();
+            if (scoreManager != null)
+            {
+                scoreManager.AddShapePlacementPoints(shape.ShapeOffsets.Count);
+            }
             // Play placement sound via manager (uses per-theme or default fallback)
             var themeStorage = shape.GetComponent<ShapeThemeStorage>();
             var manager = ShapeSpriteManager.Instance;
@@ -105,12 +119,20 @@ namespace Gameplay
                 var theme = themeStorage != null ? themeStorage.CurrentTheme : null;
                 var pos = shape.transform.position;
                 manager.PlayPlacementAt(pos, theme);
+                manager.PlayPlacementAnimation(shape);
             }
             
             // Check for line clears
+            bool cleared = false;
             if (lineClearSystem != null)
             {
-                lineClearSystem.CheckAndClearLines();
+                var clearedLines = lineClearSystem.CheckAndClearLines();
+                cleared = clearedLines != null && clearedLines.Count > 0;
+            }
+            // Combo system: if no line was cleared, notify ScoreManager
+            if (!cleared && scoreManager != null)
+            {
+                scoreManager.OnShapePlacedNoClear();
             }
             
             return true;
