@@ -322,6 +322,13 @@ namespace ColorBlast2.UI.Core
             // Load end scene
             if (!string.IsNullOrEmpty(gameEndSceneName))
             {
+                // Persist final score for GameEnd scene UI
+                var scoreMgr = FindFirstObjectByType<ColorBlast2.Systems.Scoring.ScoreManager>();
+                if (scoreMgr != null)
+                {
+                    PlayerPrefs.SetInt("LastScore", scoreMgr.GetScore());
+                    PlayerPrefs.Save();
+                }
                 UnityEngine.SceneManagement.SceneManager.LoadScene(gameEndSceneName);
             }
         }
