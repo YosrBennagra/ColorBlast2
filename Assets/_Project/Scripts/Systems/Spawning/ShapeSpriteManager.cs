@@ -40,6 +40,25 @@ public class ShapeSpriteManager : MonoBehaviour
     [SerializeField] private AudioClip defaultClearSound;
     [SerializeField] private GameObject defaultClearEffectPrefab;
 
+    [Header("SFX Volume")]
+    [Tooltip("Volume for placement sound effects.")]
+    [Range(0f,1f)]
+    [SerializeField] private float placementSfxVolume = 1f;
+
+    /// <summary>
+    /// Placement SFX volume (0..1). Adjust at runtime from UI if needed.
+    /// </summary>
+    public float PlacementSfxVolume
+    {
+        get => placementSfxVolume;
+        set => placementSfxVolume = Mathf.Clamp01(value);
+    }
+
+    /// <summary>
+    /// Convenience setter for UI events.
+    /// </summary>
+    public void SetPlacementSfxVolume(float v) => PlacementSfxVolume = v;
+
     [Header("Spawning Rules")]
     [SerializeField] private bool randomizeThemes = true;
     [SerializeField] private bool allowSameThemeForAllShapes = true;
@@ -426,7 +445,7 @@ public class ShapeSpriteManager : MonoBehaviour
         var clip = theme != null && theme.placementSound != null ? theme.placementSound : defaultPlacementSound;
         if (clip != null)
         {
-            PlaySfxRespectingMute(worldPosition, clip, 1f);
+            PlaySfxRespectingMute(worldPosition, clip, placementSfxVolume);
         }
     }
 

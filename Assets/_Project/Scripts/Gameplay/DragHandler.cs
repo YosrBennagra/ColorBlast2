@@ -41,7 +41,7 @@ namespace Gameplay
         [Header("Drag Visibility")]
         [Tooltip("Lift the dragged shape above the finger by this many screen pixels.")]
         [SerializeField] private bool liftOnDrag = true;
-        [SerializeField] private float dragLiftScreenPixels = 64f;
+    [SerializeField] private float dragLiftScreenPixels = 160f;
         [Tooltip("Apply the lift only for touch drags (mobile/simulator). If false, applies to mouse too.")]
         [SerializeField] private bool liftOnlyOnTouch = true;
     [Tooltip("Automatically compute a lift amount from the shape bounds in screen pixels.")]
@@ -49,6 +49,33 @@ namespace Gameplay
     [Range(0.25f, 2f)]
     [SerializeField] private float autoLiftMultiplier = 0.9f;
     [SerializeField] private float extraLiftPixels = 32f;
+    
+    [Header("Press Lift")]
+    [Tooltip("Add extra lift in screen pixels on the first frame when the shape is pressed and drag begins.")]
+    [SerializeField] private bool addExtraLiftOnPress = true;
+    [SerializeField] private float pressExtraLiftPixels = 180f;
+    
+        [Header("Uniform Alignment")]
+        [Tooltip("If true, keeps the bottom of the shape at a fixed number of pixels above the finger regardless of shape size.")]
+        [SerializeField] private bool alignBottomToPointer = true;
+        [Tooltip("How many screen pixels above the finger the bottom edge of the shape should sit while dragging.")]
+    [SerializeField] private float uniformLiftPixels = 200f;
+
+        [Header("Pointer Boost")]
+        [Tooltip("If true, the dragged shape leads the finger based on recent motion to help players move faster.")]
+        [SerializeField] private bool enablePointerSpeedBoost = true;
+        [Tooltip("Multiplier for how much the shape should lead the finger. 1 = no boost.")]
+        [Range(1f, 2.5f)]
+        [SerializeField] private float pointerSpeedBoost = 1.25f;
+        [Tooltip("Maximum extra lead distance in screen pixels to prevent overshooting.")]
+        [SerializeField] private float maxLeadPixels = 90f;
+        [Tooltip("If true, use displacement-based boost so the shape is consistently further than the finger from drag start.")]
+        [SerializeField] private bool useCumulativeBoost = true;
+        [Tooltip("Displacement multiplier from the drag start position. 1 = follow finger, >1 = shape further than finger.")]
+        [Range(1f, 3f)]
+        [SerializeField] private float displacementBoost = 1.7f;
+        [Tooltip("Clamp for cumulative lead (in screen pixels). Larger allows further lead.")]
+        [SerializeField] private float maxCumulativeLeadPixels = 160f;
         [Tooltip("Temporarily raise SpriteRenderer sorting order while dragging.")]
         [SerializeField] private bool boostSortingOrderOnDrag = true;
         [SerializeField] private int sortingOrderBoost = 200;
@@ -83,6 +110,8 @@ namespace Gameplay
     private Vector2 primedPressScreenPos;
     private int primedTouchId = -1;
     private Vector3 dragVelocity = Vector3.zero;
+    private Vector2 lastDragScreenPos;
+    private Vector2 dragStartScreenPos;
         
     // Preview state
     private GameObject previewRoot;
@@ -136,9 +165,15 @@ namespace Gameplay
                         {
                             transform.localScale = placedScale;
                         }
+                        lastDragScreenPos = pressScreen;
+                        dragStartScreenPos = pressScreen;
                         // Initial pop this frame using lift even before movement
                         Vector2 initialScreen = pressScreen;
-                        if (liftOnDrag && (!liftOnlyOnTouch || isTouchDrag))
+                        if (alignBottomToPointer)
+                        {
+                            initialScreen.y += uniformLiftPixels;
+                        }
+                        else if (liftOnDrag && (!liftOnlyOnTouch || isTouchDrag))
                         {
                             float lift = dragLiftScreenPixels;
                             if (autoLiftByBounds)
@@ -146,6 +181,10 @@ namespace Gameplay
                                 lift = Mathf.Max(dragLiftScreenPixels, ComputeAutoLiftPixels());
                             }
                             initialScreen.y += lift;
+                        }
+                        if (addExtraLiftOnPress)
+                        {
+                            initialScreen.y += pressExtraLiftPixels;
                         }
                         UpdateDrag(ScreenToWorld(initialScreen));
                         // Create initial preview
@@ -185,7 +224,30 @@ namespace Gameplay
                                     transform.localScale = placedScale;
                                 }
                                 // Create initial preview
+                                // Initial pop for thresholded start
+                                Vector2 initialScreen2 = curScreen;
+                                if (alignBottomToPointer)
+                                {
+                                    initialScreen2.y += uniformLiftPixels;
+                                }
+                                else if (liftOnDrag && (!liftOnlyOnTouch || isTouchDrag))
+                                {
+                                    float lift2 = dragLiftScreenPixels;
+                                    if (autoLiftByBounds)
+                                    {
+                                        lift2 = Mathf.Max(dragLiftScreenPixels, ComputeAutoLiftPixels());
+                                    }
+                                    initialScreen2.y += lift2;
+                                }
+                                if (addExtraLiftOnPress)
+                                {
+                                    initialScreen2.y += pressExtraLiftPixels;
+                                }
+                                UpdateDrag(ScreenToWorld(initialScreen2));
+                                // Create initial preview
                                 UpdatePlacementPreview();
+                                lastDragScreenPos = curScreen;
+                                dragStartScreenPos = curScreen;
                                 pressPrimed = false;
                             }
                         }
@@ -204,7 +266,46 @@ namespace Gameplay
                 {
                     if (TryGetPointerPosition(activeTouchId, out Vector2 screenPos))
                     {
-                        if (liftOnDrag && (!liftOnlyOnTouch || isTouchDrag))
+                        var rawScreen = screenPos;
+
+                        // Optional pointer lead boost (in screen space)
+                        if (enablePointerSpeedBoost)
+                        {
+                            if (useCumulativeBoost)
+                            {
+                                // Lead based on displacement from drag start (consistent "further than finger")
+                                Vector2 disp = rawScreen - dragStartScreenPos;
+                                float gain = Mathf.Max(1f, displacementBoost);
+                                Vector2 boosted = dragStartScreenPos + disp * gain;
+                                Vector2 extra = boosted - rawScreen;
+                                if (maxCumulativeLeadPixels > 0f)
+                                {
+                                    float mag = extra.magnitude;
+                                    if (mag > maxCumulativeLeadPixels) extra *= maxCumulativeLeadPixels / Mathf.Max(0.0001f, mag);
+                                }
+                                screenPos += extra;
+                            }
+                            else
+                            {
+                                // Lead based on recent velocity
+                                Vector2 delta = rawScreen - lastDragScreenPos;
+                                float boostFactor = Mathf.Max(1f, pointerSpeedBoost);
+                                Vector2 extra = delta * (boostFactor - 1f);
+                                if (maxLeadPixels > 0f)
+                                {
+                                    float mag = extra.magnitude;
+                                    if (mag > maxLeadPixels) extra *= maxLeadPixels / Mathf.Max(0.0001f, mag);
+                                }
+                                screenPos += extra;
+                            }
+                        }
+
+                        // Lift/align
+                        if (alignBottomToPointer)
+                        {
+                            screenPos.y += uniformLiftPixels;
+                        }
+                        else if (liftOnDrag && (!liftOnlyOnTouch || isTouchDrag))
                         {
                             float lift = dragLiftScreenPixels;
                             if (autoLiftByBounds)
@@ -214,6 +315,9 @@ namespace Gameplay
                             screenPos.y += lift;
                         }
                         UpdateDrag(ScreenToWorld(screenPos));
+
+                        // Update last raw pointer screen position for next frame's boost
+                        lastDragScreenPos = rawScreen;
 
                         // Update placement preview at snapped grid position
                         UpdatePlacementPreview();
@@ -367,7 +471,18 @@ namespace Gameplay
         private void UpdateDrag(Vector3 pointerWorld)
         {
             pointerWorld.z = transform.position.z;
-            var target = pointerWorld + offset;
+            Vector3 target;
+            if (alignBottomToPointer)
+            {
+                // Align the bottom of the shape's bounds to the lifted pointer position (uniform across shapes)
+                var b = GetBounds();
+                float bottomDelta = transform.position.y - b.min.y; // distance from transform pivot to bottom
+                target = new Vector3(pointerWorld.x + offset.x, pointerWorld.y + bottomDelta, transform.position.z);
+            }
+            else
+            {
+                target = pointerWorld + offset;
+            }
             if (smoothDrag)
                 transform.position = Vector3.SmoothDamp(transform.position, target, ref dragVelocity, dragSmoothTime, dragMaxSpeed);
             else

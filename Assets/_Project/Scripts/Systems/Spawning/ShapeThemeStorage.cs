@@ -33,8 +33,15 @@ public class ShapeThemeStorage : MonoBehaviour
                 audioSource = gameObject.AddComponent<AudioSource>();
                 audioSource.playOnAwake = false;
             }
-            
-            audioSource.PlayOneShot(currentTheme.placementSound);
+            float vol = 1f;
+            if (ShapeSpriteManager.Instance != null)
+            {
+                // reflectively access private field if necessary or expose a getter; here we use a safe default path
+                // Prefer calling manager API instead of direct play to keep behavior consistent
+                ShapeSpriteManager.Instance.PlayPlacementAt(transform.position, currentTheme);
+                return;
+            }
+            audioSource.PlayOneShot(currentTheme.placementSound, vol);
         }
     }
     
