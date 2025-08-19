@@ -12,11 +12,39 @@ namespace ColorBlast2.Systems.Scoring
 {
     public class ScoreManager : MonoBehaviour
     {
+    private enum ComboSpawnMode { GridCenter, AboveScoreText }
         [Header("UI References")]
     public ColorBlast2.UI.Core.CoreScoreDisplay scoreDisplay;
         public TextMeshProUGUI comboText;
         public Transform comboSpriteParent;
         public GameObject comboSpritePrefab;
+    [Header("Combo Sprite Placement Preview")] 
+    [Tooltip("Show a gizmo where the combo sprite will spawn (editor only).")]
+    [SerializeField] private bool showComboSpawnGizmo = true;
+    [Tooltip("Extra world offset applied to the computed grid center position.")]
+    [SerializeField] private Vector3 comboWorldOffset = Vector3.zero;
+    [Tooltip("If true and parent is a Screen Space / Camera canvas, position will be converted to anchored UI coordinates.")]
+    [SerializeField] private bool adaptToParentCanvas = true;
+    [Tooltip("Optional override canvas; if null uses comboSpriteParent canvas (if any).")]
+    [SerializeField] private Canvas comboCanvasOverride;
+    [Tooltip("Lifetime (seconds) before the combo sprite is auto destroyed (excludes pop animation time).")]
+    [SerializeField] private float comboSpriteExtraLifetime = 0.5f;
+    [Tooltip("Don’t destroy spawned combo sprite automatically (useful for debugging placement).")]
+    [SerializeField] private bool keepComboSpriteForDebug = false;
+    [Tooltip("Scale multiplier applied after pop animation (1 = original). Useful to audition final resting size.")]
+    [SerializeField] private float postPopRestScale = 1f;
+    [Tooltip("Choose where the combo sprite appears.")]
+    [SerializeField] private ComboSpawnMode comboSpawnMode = ComboSpawnMode.GridCenter;
+    [Tooltip("Offset applied when spawning AboveScoreText (local UI units if UI element, world units otherwise).")]
+    [SerializeField] private Vector3 scoreTextOffset = new Vector3(0f, 60f, 0f);
+    [Tooltip("If true, use an absolute final scale instead of multiplier.")]
+    [SerializeField] private bool useAbsoluteFinalScale = true;
+    [Tooltip("Absolute scale to apply after pop animation when useAbsoluteFinalScale is true (taken from your reference screenshot).")]
+    [SerializeField] private Vector3 absoluteFinalScale = new Vector3(0.2910315f, 0.2427592f, 1f);
+    [Tooltip("Force sprite renderers on the popup to this sorting order (keeps it above score text). -1 disables.")]
+    [SerializeField] private int forceSortingOrder = 1200;
+    [Tooltip("Master toggle to enable/disable the combo sprite popup visuals (prefab instantiation). Combo text still works.")]
+    [SerializeField] private bool enableComboSprite = false;
 
         [Header("Scoring Settings")]
         public int pointsPerBlock = 10;
@@ -167,7 +195,7 @@ namespace ColorBlast2.Systems.Scoring
                     comboText.gameObject.SetActive(false);
                 }
             }
-            PopComboSprite();
+            if (enableComboSprite) PopComboSprite();
         }
 
         // Call this after every shape placement (even if no line is cleared)
@@ -191,12 +219,19 @@ namespace ColorBlast2.Systems.Scoring
             }
         }
 
+        private Vector3 scoreBaseScale = Vector3.one;
+
         private void AnimateScore()
         {
             if (scoreDisplay && scoreDisplay.scoreText)
             {
-                if (scorePunchRoutine != null) StopCoroutine(scorePunchRoutine);
-                scorePunchRoutine = StartCoroutine(PunchScale(scoreDisplay.scoreText.transform));
+                if (scorePunchRoutine != null)
+                {
+                    StopCoroutine(scorePunchRoutine);
+                    // ensure reset to base
+                    scoreDisplay.scoreText.rectTransform.localScale = scoreBaseScale;
+                }
+                scorePunchRoutine = StartCoroutine(SafePunchScore(scoreDisplay.scoreText.rectTransform));
             }
         }
 
@@ -309,34 +344,62 @@ namespace ColorBlast2.Systems.Scoring
         {
             if (scoreDisplay && scoreDisplay.highScoreText)
             {
+                // Remove scaling effect: just do a brief color flash
                 if (highScoreAnimRoutine != null) StopCoroutine(highScoreAnimRoutine);
-                highScoreAnimRoutine = StartCoroutine(PunchScale(scoreDisplay.highScoreText.transform, Color.yellow));
+                highScoreAnimRoutine = StartCoroutine(FlashHighScoreColor(scoreDisplay.highScoreText, Color.yellow, 0.45f));
             }
         }
 
-        private IEnumerator PunchScale(Transform target, Color? flashColor = null)
+        private IEnumerator FlashHighScoreColor(TMP_Text text, Color flashColor, float duration)
         {
-            Vector3 original = target.localScale;
-            Vector3 punch = original * 1.2f;
+            if (text == null) yield break;
+            Color original = text.color;
             float t = 0f;
-            float duration = 0.25f;
-            var text = target.GetComponent<TMP_Text>();
-            Color origColor = text ? text.color : Color.white;
             while (t < duration)
             {
                 t += Time.unscaledDeltaTime;
-                float p = t / duration;
-                target.localScale = Vector3.LerpUnclamped(original, punch, Mathf.Sin(p * Mathf.PI));
-                if (flashColor.HasValue && text)
-                    text.color = Color.Lerp(origColor, flashColor.Value, Mathf.PingPong(p * 2f, 1f));
+                float p = Mathf.PingPong(t * 4f, 1f); // fast pulse
+                text.color = Color.Lerp(original, flashColor, p);
                 yield return null;
             }
-            target.localScale = original;
-            if (text) text.color = origColor;
+            text.color = original;
+        }
+
+        private IEnumerator SafePunchScore(RectTransform target)
+        {
+            if (target == null) yield break;
+            // Cache base on first use
+            if (scoreBaseScale == Vector3.one)
+                scoreBaseScale = target.localScale;
+            target.localScale = scoreBaseScale;
+
+            float duration = 0.18f;
+            float t = 0f;
+            Vector3 up = scoreBaseScale * 1.12f;
+            // Up
+            while (t < duration * 0.5f)
+            {
+                t += Time.unscaledDeltaTime;
+                float a = Mathf.Clamp01(t / (duration * 0.5f));
+                target.localScale = Vector3.Lerp(scoreBaseScale, up, a);
+                yield return null;
+            }
+            // Down
+            t = 0f;
+            while (t < duration * 0.5f)
+            {
+                t += Time.unscaledDeltaTime;
+                float a = Mathf.Clamp01(t / (duration * 0.5f));
+                target.localScale = Vector3.Lerp(up, scoreBaseScale, a);
+                yield return null;
+            }
+            target.localScale = scoreBaseScale;
+            scorePunchRoutine = null;
         }
 
         private void PopComboSprite()
         {
+            if (!enableComboSprite) return; // safety gate
             if (comboSpritePrefab == null || comboSpriteParent == null) return;
             if (comboSpriteRoutine != null) StopCoroutine(comboSpriteRoutine);
             comboSpriteRoutine = StartCoroutine(PopComboSpriteRoutine());
@@ -345,16 +408,8 @@ namespace ColorBlast2.Systems.Scoring
         private IEnumerator PopComboSpriteRoutine()
         {
             GameObject obj = Instantiate(comboSpritePrefab, comboSpriteParent);
-            // Center in grid
-            var gridManager = UnityEngine.Object.FindAnyObjectByType<GridManager>();
-            if (gridManager != null) {
-                int w = gridManager.GridWidth;
-                int h = gridManager.GridHeight;
-                // Center of grid in world space
-                Vector2Int centerCell = new Vector2Int((w-1)/2, (h-1)/2);
-                obj.transform.position = gridManager.GridToWorldPosition(centerCell);
-            }
-            obj.transform.localScale = Vector3.one; // native size
+            PositionComboSprite(obj);
+            obj.transform.localScale = Vector3.one; // ensure starting scale
             float t = 0f;
             while (t < comboSpritePopDuration)
             {
@@ -363,9 +418,114 @@ namespace ColorBlast2.Systems.Scoring
                 obj.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.one * comboSpritePopScale, Mathf.Sin(p * Mathf.PI));
                 yield return null;
             }
-            obj.transform.localScale = Vector3.one;
-            yield return new WaitForSeconds(0.5f);
-            Destroy(obj);
+            obj.transform.localScale = Vector3.one * postPopRestScale;
+            if (useAbsoluteFinalScale) obj.transform.localScale = absoluteFinalScale;
+            if (!keepComboSpriteForDebug)
+            {
+                yield return new WaitForSeconds(comboSpriteExtraLifetime);
+                if (obj) Destroy(obj);
+            }
+        }
+
+        // Computes and applies the intended placement for a combo sprite object
+        private void PositionComboSprite(GameObject obj)
+        {
+            if (obj == null) return;
+            Vector3 worldPos = ComputeComboWorldPosition();
+            // If we adapt to canvas & parent is UI, convert
+            if (adaptToParentCanvas)
+            {
+                Canvas targetCanvas = comboCanvasOverride;
+                if (targetCanvas == null && comboSpriteParent != null)
+                    targetCanvas = comboSpriteParent.GetComponentInParent<Canvas>();
+                if (targetCanvas != null && targetCanvas.renderMode != RenderMode.WorldSpace)
+                {
+                    // Convert world to screen, then to canvas local
+                    Camera cam = targetCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : targetCanvas.worldCamera;
+                    Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
+                    if (obj.transform is RectTransform rt)
+                    {
+                        RectTransform canvasRT = targetCanvas.transform as RectTransform;
+                        Vector2 localPoint;
+                        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRT, screenPoint, cam, out localPoint))
+                        {
+                            // If spawning above score text, offset in UI space
+                            if (comboSpawnMode == ComboSpawnMode.AboveScoreText && scoreDisplay && scoreDisplay.scoreText && scoreDisplay.scoreText.transform is RectTransform scoreRT)
+                            {
+                                Vector3 anchored = scoreRT.anchoredPosition + (Vector2)scoreTextOffset;
+                                rt.anchoredPosition = anchored;
+                            }
+                            else
+                            {
+                                rt.anchoredPosition = localPoint;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        obj.transform.position = worldPos; // fallback
+                    }
+                    ApplySortingOverride(obj);
+                    return;
+                }
+            }
+            obj.transform.position = worldPos;
+            ApplySortingOverride(obj);
+        }
+
+        private Vector3 ComputeComboWorldPosition()
+        {
+            // Default to this manager position
+            Vector3 pos = transform.position;
+            var gridManager = UnityEngine.Object.FindAnyObjectByType<GridManager>();
+            if (comboSpawnMode == ComboSpawnMode.GridCenter)
+            {
+                if (gridManager != null)
+                {
+                    int w = gridManager.GridWidth;
+                    int h = gridManager.GridHeight;
+                    Vector2Int centerCell = new Vector2Int((w - 1) / 2, (h - 1) / 2);
+                    pos = gridManager.GridToWorldPosition(centerCell);
+                }
+                pos += comboWorldOffset;
+            }
+            else if (comboSpawnMode == ComboSpawnMode.AboveScoreText && scoreDisplay && scoreDisplay.scoreText)
+            {
+                // Use score text world position plus offset (treat offset as world if not UI object)
+                pos = scoreDisplay.scoreText.transform.position + comboWorldOffset + scoreTextOffset;
+            }
+            return pos;
+        }
+
+        private void ApplySortingOverride(GameObject obj)
+        {
+            if (forceSortingOrder < 0 || obj == null) return;
+            var srs = obj.GetComponentsInChildren<SpriteRenderer>(true);
+            foreach (var sr in srs)
+            {
+                if (sr == null) continue;
+                sr.sortingOrder = forceSortingOrder;
+            }
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            if (!showComboSpawnGizmo) return;
+            if (comboSpritePrefab == null) return;
+            Gizmos.color = new Color(1f, 0.6f, 0.1f, 0.65f);
+            Vector3 p = ComputeComboWorldPosition();
+            Gizmos.DrawSphere(p, 0.25f);
+            Gizmos.color = new Color(1f, 0.6f, 0.1f, 0.3f);
+            Gizmos.DrawWireCube(p, Vector3.one * 0.8f);
+        }
+
+        [ContextMenu("Test Combo Popup (Play Mode)")]
+        private void ContextTestCombo()
+        {
+            if (Application.isPlaying)
+            {
+                PopComboSprite();
+            }
         }
 
         public void ResetScore()

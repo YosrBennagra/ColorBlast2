@@ -18,6 +18,12 @@ namespace Gameplay
         [SerializeField] private bool useReturnAnimation = true;
         [SerializeField] private bool showInvalidPlacementFeedback = true;
 
+    [Header("Smoothing")]
+    [Tooltip("If true, uses SmoothDamp to move toward the pointer for a softer feel.")]
+    [SerializeField] private bool smoothDrag = true;
+    [SerializeField, Min(0f)] private float dragSmoothTime = 0.06f;
+    [SerializeField, Min(0f)] private float dragMaxSpeed = 100f;
+
     [Header("Drag Gating")]
     [Tooltip("Block dragging for a short time right after spawn (e.g., while pop-in animation plays).")]
     [SerializeField] private float dragLockDurationOnSpawn = 0.3f;
@@ -76,6 +82,7 @@ namespace Gameplay
     private bool pressPrimed = false;
     private Vector2 primedPressScreenPos;
     private int primedTouchId = -1;
+    private Vector3 dragVelocity = Vector3.zero;
         
     // Preview state
     private GameObject previewRoot;
@@ -354,17 +361,23 @@ namespace Gameplay
             isDragging = true;
             pointerWorld.z = transform.position.z;
             offset = transform.position - pointerWorld;
+            dragVelocity = Vector3.zero;
         }
         
         private void UpdateDrag(Vector3 pointerWorld)
         {
             pointerWorld.z = transform.position.z;
-            transform.position = pointerWorld + offset;
+            var target = pointerWorld + offset;
+            if (smoothDrag)
+                transform.position = Vector3.SmoothDamp(transform.position, target, ref dragVelocity, dragSmoothTime, dragMaxSpeed);
+            else
+                transform.position = target;
         }
         
         private void EndDrag()
         {
             isDragging = false;
+            dragVelocity = Vector3.zero;
             if (boostSortingOrderOnDrag) RestoreSortingOrder();
             DestroyPreview();
             

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 namespace ColorBlast2.UI.Core
 {
@@ -16,6 +17,12 @@ namespace ColorBlast2.UI.Core
         [SerializeField] private Gameplay.GridManager gridManager;
         [Tooltip("The Game Over UI panel to activate when no moves remain.")]
         [SerializeField] private GameObject gameOverPanel;
+    [Header("Audio")]
+    [Tooltip("Optional AudioSource used for playing the game over SFX (will be added automatically if missing).")]
+    [SerializeField] private AudioSource audioSource;
+    [Tooltip("Clip played once when game over triggers.")]
+    [SerializeField] private AudioClip gameOverSfx;
+    [Range(0f,1f)] [SerializeField] private float gameOverSfxVolume = 1f;
 
     [Header("Sorting / Layering")]
     [Tooltip("Sorting order to apply to the Game Over panel's Canvas (must be higher than other UI panels).")]
@@ -62,11 +69,14 @@ namespace ColorBlast2.UI.Core
     private float countdownRemaining;
     private bool reviveChosen = false;
     private bool awaitingAd = false;
-    [Header("Ad Simulation (Replace with real SDK)")]
-    [SerializeField] private float shortAdDuration = 1.5f;
-    [SerializeField] private float longAdDuration = 4f;
-    [SerializeField] private bool logAdSim = true;
-    private bool adRunning = false;
+    [Header("Ads Integration")]
+    [Tooltip("If true, will attempt to use AdService (Unity Ads / provider) instead of simulation.")]
+    [SerializeField] private bool useRealAds = true;
+    [Tooltip("Fallback simulate durations if real ads not available.")]
+    [SerializeField] private float simulateInterstitialDuration = 1.0f;
+    [SerializeField] private float simulateRewardedDuration = 2.5f;
+    [Tooltip("Log simulation fallback messages.")]
+    [SerializeField] private bool logSimFallback = true;
 
         private void Awake()
         {
@@ -79,6 +89,15 @@ namespace ColorBlast2.UI.Core
             {
                 watchAdButton.onClick.RemoveAllListeners();
                 watchAdButton.onClick.AddListener(OnWatchAdClicked);
+            }
+            if (audioSource == null && gameOverSfx != null)
+            {
+                audioSource = gameOverPanel != null ? gameOverPanel.GetComponent<AudioSource>() : null;
+                if (audioSource == null)
+                {
+                    audioSource = gameObject.AddComponent<AudioSource>();
+                    audioSource.playOnAwake = false;
+                }
             }
         }
 
@@ -141,10 +160,26 @@ namespace ColorBlast2.UI.Core
             {
                 Debug.Log("GameOverManager: No valid moves remain. Game Over panel displayed.");
             }
+            PlayGameOverSfx();
             // Start countdown for auto short ad -> end
             StartCountdown();
             if (panelAnimator != null && !string.IsNullOrEmpty(showTrigger)) panelAnimator.SetTrigger(showTrigger);
             // (Keep it simple: don't alter Time.timeScale here per user request.)
+        }
+
+        private void PlayGameOverSfx()
+        {
+            if (gameOverSfx == null) return;
+            if (audioSource == null)
+            {
+                audioSource = gameObject.GetComponent<AudioSource>();
+                if (audioSource == null)
+                {
+                    audioSource = gameObject.AddComponent<AudioSource>();
+                    audioSource.playOnAwake = false;
+                }
+            }
+            audioSource.PlayOneShot(gameOverSfx, gameOverSfxVolume);
         }
 
         // Scan all SpriteRenderers and push canvas sorting above highest order
@@ -228,7 +263,14 @@ namespace ColorBlast2.UI.Core
         {
             if (awaitingAd) return;
             awaitingAd = true;
-            StartCoroutine(RunAd(shortAdDuration, false, HandleShortAdFinished));
+            if (useRealAds && ColorBlast2.Systems.Ads.AdService.Exists)
+            {
+                ColorBlast2.Systems.Ads.AdService.Instance.ShowInterstitial(HandleShortAdFinished, FallbackSimInterstitial);
+            }
+            else
+            {
+                FallbackSimInterstitial();
+            }
         }
 
         private void HandleShortAdFinished()
@@ -240,7 +282,17 @@ namespace ColorBlast2.UI.Core
         {
             if (awaitingAd) return;
             awaitingAd = true;
-            StartCoroutine(RunAd(longAdDuration, true, HandleLongAdFinished));
+            if (useRealAds && ColorBlast2.Systems.Ads.AdService.Exists)
+            {
+                ColorBlast2.Systems.Ads.AdService.Instance.ShowRewarded(success =>
+                {
+                    if (success) HandleLongAdFinished(); else HandleShortAdFinished();
+                }, FallbackSimRewarded);
+            }
+            else
+            {
+                FallbackSimRewarded();
+            }
         }
 
         private void HandleLongAdFinished()
@@ -333,18 +385,27 @@ namespace ColorBlast2.UI.Core
             }
         }
 
-        private System.Collections.IEnumerator RunAd(float duration, bool reward, System.Action onComplete)
+        private void FallbackSimInterstitial()
         {
-            adRunning = true;
-            if (logAdSim) Debug.Log($"[GameOverManager] Simulating {(reward ? "LONG(revive)" : "SHORT(end)")} ad for {duration:F1}s");
+            if (logSimFallback) Debug.Log("[GameOverManager] Interstitial fallback simulation");
+            StartCoroutine(SimRoutine(simulateInterstitialDuration, HandleShortAdFinished));
+        }
+
+        private void FallbackSimRewarded()
+        {
+            if (logSimFallback) Debug.Log("[GameOverManager] Rewarded fallback simulation");
+            StartCoroutine(SimRoutine(simulateRewardedDuration, HandleLongAdFinished));
+        }
+
+        private System.Collections.IEnumerator SimRoutine(float d, Action done)
+        {
             float t = 0f;
-            while (t < duration)
+            while (t < d)
             {
                 t += Time.unscaledDeltaTime;
                 yield return null;
             }
-            adRunning = false;
-            onComplete?.Invoke();
+            done?.Invoke();
         }
 
         /// <summary>

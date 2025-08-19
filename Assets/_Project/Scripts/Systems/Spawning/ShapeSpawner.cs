@@ -52,6 +52,10 @@ public class ShapeSpawner : MonoBehaviour
     [SerializeField] private bool preventSameFamilyInSet = true;
     [Tooltip("Optional family labels aligned with shapePrefabs (e.g., L, I, T, O, Z). Empty entries fallback to prefab name prefix.")]
     [SerializeField] private string[] shapeFamilyLabels = new string[0];
+    [Tooltip("When using deterministic selection, shuffle the bag the first time so the initial 3 shapes vary between runs.")]
+    [SerializeField] private bool randomizeInitialDeterministicBag = true;
+    [Tooltip("Also pick a random starting cursor inside the shuffled bag for extra variation.")]
+    [SerializeField] private bool randomizeInitialCursor = true;
 
     [Header("Shape Variants (Orientation)")]
     [Tooltip("Allow rotated/mirrored variants when spawning so sets don't look identical.")]
@@ -86,6 +90,8 @@ public class ShapeSpawner : MonoBehaviour
     private int bagCursor = 0;
     private readonly Queue<int> recentIndices = new Queue<int>();
     private readonly Queue<int> deferredIndices = new Queue<int>();
+    // Internal flag to ensure we only randomize the initial bag once per play session
+    private bool initialBagRandomized = false;
 
     [Header("Shape Size Control")]
     [Tooltip("Global base scale applied to all spawned shapes before spawn effect.")]
@@ -436,7 +442,33 @@ public class ShapeSpawner : MonoBehaviour
             for (int i = 0; i < n; i++) bag.Add(i);
             bagCursor = 0;
         }
+        // Randomize only once at the beginning of a play session to avoid identical opening sets
+        if (useDeterministicSelection && randomizeInitialDeterministicBag && !initialBagRandomized && Application.isPlaying)
+        {
+            ShuffleBag();
+            if (randomizeInitialCursor && bag.Count > 0)
+            {
+                bagCursor = Random.Range(0, bag.Count);
+            }
+            initialBagRandomized = true;
+            if (debugSelection)
+            {
+                Debug.Log($"[ShapeSpawner] Initial deterministic bag shuffled. Order={string.Join(",", bag)} cursor={bagCursor}");
+            }
+        }
         if (bagCursor >= bag.Count) bagCursor = 0;
+    }
+
+    private void ShuffleBag()
+    {
+        // Fisher-Yates
+        for (int i = bag.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            int tmp = bag[i];
+            bag[i] = bag[j];
+            bag[j] = tmp;
+        }
     }
 
     private int NextIndexFromBag(int n, HashSet<int> disallow, bool allowRepeatIfNeeded = false, HashSet<string> familyBlock = null)
