@@ -46,7 +46,7 @@ namespace ColorBlast2.UI.Core
         private float lastCheckTime = 0f;
 
     [Header("Ad / Revive UI")]
-    [Tooltip("Countdown seconds before auto short ad + end.")]
+    [Tooltip("Countdown seconds before auto interstitial + end.")]
     [SerializeField] private float countdownSeconds = 5f;
     [Tooltip("Text element that displays remaining seconds.")]
     [SerializeField] private TMPro.TextMeshProUGUI countdownText;
@@ -239,8 +239,8 @@ namespace ColorBlast2.UI.Core
             else
             {
                 countdownActive = false;
-                // Auto short ad then end game
-                PlayShortAdThenEnd();
+                // Auto interstitial ad then end game
+                PlayInterstitialThenEnd();
             }
         }
 
@@ -256,16 +256,18 @@ namespace ColorBlast2.UI.Core
             if (reviveChosen || awaitingAd) return;
             reviveChosen = true;
             countdownActive = false;
-            PlayLongAdThenRevive();
+        PlayRewardedThenRevive();
         }
 
-        private void PlayShortAdThenEnd()
+    private void PlayInterstitialThenEnd()
         {
             if (awaitingAd) return;
             awaitingAd = true;
-            if (useRealAds && ColorBlast2.Systems.Ads.AdService.Exists)
+            // Prefer AdsBridge (uses your Ads scripts, simulates if not ready)
+            var bridge = FindFirstObjectByType<AdsBridge>();
+            if (useRealAds && bridge != null)
             {
-                ColorBlast2.Systems.Ads.AdService.Instance.ShowInterstitial(HandleShortAdFinished, FallbackSimInterstitial);
+        bridge.ShowInterstitial(HandleInterstitialFinished);
             }
             else
             {
@@ -273,21 +275,19 @@ namespace ColorBlast2.UI.Core
             }
         }
 
-        private void HandleShortAdFinished()
+    private void HandleInterstitialFinished()
         {
             EndGame();
         }
 
-        private void PlayLongAdThenRevive()
+    private void PlayRewardedThenRevive()
         {
             if (awaitingAd) return;
             awaitingAd = true;
-            if (useRealAds && ColorBlast2.Systems.Ads.AdService.Exists)
+            var bridge = FindFirstObjectByType<AdsBridge>();
+            if (useRealAds && bridge != null)
             {
-                ColorBlast2.Systems.Ads.AdService.Instance.ShowRewarded(success =>
-                {
-                    if (success) HandleLongAdFinished(); else HandleShortAdFinished();
-                }, FallbackSimRewarded);
+        bridge.ShowRewarded(success => { if (success) HandleRewardedFinished(); else HandleInterstitialFinished(); });
             }
             else
             {
@@ -295,7 +295,7 @@ namespace ColorBlast2.UI.Core
             }
         }
 
-        private void HandleLongAdFinished()
+    private void HandleRewardedFinished()
         {
             RevivePlayer();
         }
@@ -388,13 +388,13 @@ namespace ColorBlast2.UI.Core
         private void FallbackSimInterstitial()
         {
             if (logSimFallback) Debug.Log("[GameOverManager] Interstitial fallback simulation");
-            StartCoroutine(SimRoutine(simulateInterstitialDuration, HandleShortAdFinished));
+            StartCoroutine(SimRoutine(simulateInterstitialDuration, HandleInterstitialFinished));
         }
 
         private void FallbackSimRewarded()
         {
             if (logSimFallback) Debug.Log("[GameOverManager] Rewarded fallback simulation");
-            StartCoroutine(SimRoutine(simulateRewardedDuration, HandleLongAdFinished));
+            StartCoroutine(SimRoutine(simulateRewardedDuration, HandleRewardedFinished));
         }
 
         private System.Collections.IEnumerator SimRoutine(float d, Action done)
