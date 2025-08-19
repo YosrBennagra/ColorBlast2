@@ -23,20 +23,39 @@ public class AdsBridge : MonoBehaviour
     [SerializeField] private float simulateInterstitialSeconds = 1.5f;
     [SerializeField] private float simulateRewardedSeconds = 2.5f;
 
+    [Header("Banner Persistence")]
+    [SerializeField] private bool keepAcrossScenes = true;
+    [SerializeField] private bool alwaysShowBanner = true;
+
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (keepAcrossScenes) DontDestroyOnLoad(gameObject);
         AutoAssign();
+        if (alwaysShowBanner)
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+            // Ensure banner shows right away on first scene if requested
+            ShowBanner();
+        }
     }
 
     private void AutoAssign()
     {
         if (adsInitializer == null) adsInitializer = FindFirstObjectByType<AdsInitializer>();
         if (interstitial == null) interstitial = FindFirstObjectByType<InterstitialAd>();
-        if (banner == null) banner = FindFirstObjectByType<BannerAd>();
-    if (rewarded == null) rewarded = FindFirstObjectByType<RewardedAd>();
+        if (banner == null)
+        {
+            banner = FindFirstObjectByType<BannerAd>();
+            if (banner == null)
+            {
+                var go = new GameObject("_BannerAd");
+                if (keepAcrossScenes) DontDestroyOnLoad(go);
+                banner = go.AddComponent<BannerAd>();
+            }
+        }
+        if (rewarded == null) rewarded = FindFirstObjectByType<RewardedAd>();
     }
 
     public void InitializeIfNeeded()
@@ -132,6 +151,12 @@ public class AdsBridge : MonoBehaviour
         AutoAssign();
         if (banner == null) return;
         banner.HideBannerAd();
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (!alwaysShowBanner) return;
+        ShowBanner();
     }
 
     // ---------------- Rewarded ----------------

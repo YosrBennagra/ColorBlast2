@@ -10,7 +10,15 @@ public class AdsInitializer : MonoBehaviour, IUnityAdsInitializationListener
  
   void Awake()
   {
-    SetupAds();
+    if (Advertisement.isInitialized)
+    {
+      // If Ads already initialized (e.g., from a previous scene), trigger post-init behaviors
+      OnInitializationComplete();
+    }
+    else
+    {
+      SetupAds();
+    }
   }
  
   public void SetupAds()

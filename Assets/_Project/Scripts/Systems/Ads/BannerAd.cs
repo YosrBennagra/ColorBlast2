@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Advertisements;
 using System;
+using System.Collections;
  
 public class BannerAd : MonoBehaviour
 {
@@ -29,13 +30,16 @@ public class BannerAd : MonoBehaviour
     _adUnitId = _iOSAdUnitId;
     #elif UNITY_ANDROID
     _adUnitId = _androidAdUnitId;
+  #elif UNITY_EDITOR
+  _adUnitId = _androidAdUnitId; // Use Android unit for editor testing config
     #endif
 
-    // Disable the button until an ad is ready to show:
-    _showBannerButton.interactable = false;
-    _hideBannerButton.interactable = false;
+  // Disable the buttons (if assigned) until an ad is ready to show:
+  if (_showBannerButton != null) _showBannerButton.interactable = false;
+  if (_hideBannerButton != null) _hideBannerButton.interactable = false;
 
     // Set the banner position:
+    _bannerPosition = BannerPosition.BOTTOM_CENTER;
     Advertisement.Banner.SetPosition(_bannerPosition);
 
         // Configure the Load Banner button to call the LoadBanner() method when clicked:
@@ -45,11 +49,21 @@ public class BannerAd : MonoBehaviour
             _loadBannerButton.interactable = true;
         }
         
-        // Auto-load banner if Unity Ads is already initialized
-        if (Advertisement.isInitialized)
-        {
-            LoadBanner();
-        }
+    // Auto-load banner if Unity Ads is already initialized
+    if (Advertisement.isInitialized)
+    {
+      LoadBanner();
+    }
+    else
+    {
+      // Wait for initialization then load
+      StartCoroutine(WaitForInitAndLoad());
+    }
+
+    if (Application.isEditor)
+    {
+      Debug.Log("[BannerAd] Running in Editor. Banner ads may not render in the Editor. Test on a device.");
+    }
   }
  
   // Implement a method to call when the Load Banner button is clicked:
@@ -84,7 +98,10 @@ public class BannerAd : MonoBehaviour
             if (_hideBannerButton != null) _hideBannerButton.onClick.AddListener(HideBannerAd);
 
             if (_showBannerButton != null) _showBannerButton.interactable = true;
-            if (_hideBannerButton != null) _hideBannerButton.interactable = true;     
+            if (_hideBannerButton != null) _hideBannerButton.interactable = true;
+            
+            // Auto-show banner after loading
+            ShowBannerAd();
   }
 
   // Implement code to execute when the load errorCallback event triggers:
@@ -100,6 +117,16 @@ public class BannerAd : MonoBehaviour
   // Implement a method to call when the Show Banner button is clicked:
     public void ShowBannerAd()
   {
+      if (!IsLoaded)
+      {
+          Debug.LogWarning("Banner not loaded yet, loading first...");
+          LoadBanner();
+          return;
+      }
+      
+      // Always ensure bottom center position before showing
+      Advertisement.Banner.SetPosition(BannerPosition.BOTTOM_CENTER);
+      
       // Set up options to notify the SDK of show events:
       BannerOptions options = new BannerOptions
       {
@@ -130,5 +157,26 @@ public class BannerAd : MonoBehaviour
     if (_loadBannerButton != null) _loadBannerButton.onClick.RemoveAllListeners();
     if (_showBannerButton != null) _showBannerButton.onClick.RemoveAllListeners();
     if (_hideBannerButton != null) _hideBannerButton.onClick.RemoveAllListeners();
+  }
+
+  private System.Collections.IEnumerator WaitForInitAndLoad()
+  {
+    float timeout = 30f;
+    float timer = 0f;
+    
+    while (!Advertisement.isInitialized && timer < timeout)
+    {
+      timer += Time.unscaledDeltaTime;
+      yield return null;
+    }
+    
+    if (Advertisement.isInitialized)
+    {
+      LoadBanner();
+    }
+    else
+    {
+      Debug.LogWarning("[BannerAd] Unity Ads failed to initialize within timeout period");
+    }
   }
 }
