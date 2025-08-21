@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
 using DG.Tweening;
+using ColorBlast.Game;
 
 /// <summary>
 /// Simple sprite theme for shapes
@@ -65,14 +66,11 @@ public class ShapeSpriteManager : MonoBehaviour
     [SerializeField] private int minDifferentThemes = 1;
     [SerializeField] private int maxDifferentThemes = 3;
     
-    [Header("Debug")]
-    [SerializeField] private bool showDebugInfo = false;
-    
     // Singleton-like access
     public static ShapeSpriteManager Instance { get; private set; }
     
     // Events
-    public System.Action<Core.Shape, SpriteTheme> OnShapeThemeApplied;
+    public System.Action<Shape, SpriteTheme> OnShapeThemeApplied;
     
     private void Awake()
     {
@@ -104,11 +102,6 @@ public class ShapeSpriteManager : MonoBehaviour
             {
                 spriteThemes[i].themeName = $"Theme_{i}";
             }
-        }
-        
-        if (showDebugInfo)
-        {
-            Debug.Log($"ShapeSpriteManager: Loaded {spriteThemes.Count} sprite themes");
         }
     }
     
@@ -149,7 +142,7 @@ public class ShapeSpriteManager : MonoBehaviour
     {
         if (shapeObject == null || theme == null) return;
         
-        Core.Shape shape = shapeObject.GetComponent<Core.Shape>();
+        Shape shape = shapeObject.GetComponent<Shape>();
         if (shape == null)
         {
             Debug.LogWarning($"GameObject {shapeObject.name} doesn't have a Shape component!");
@@ -181,11 +174,6 @@ public class ShapeSpriteManager : MonoBehaviour
         themeStorage.SetTheme(theme);
         
         OnShapeThemeApplied?.Invoke(shape, theme);
-        
-        if (showDebugInfo)
-        {
-            Debug.Log($"Applied theme '{theme.themeName}' to shape {shapeObject.name}");
-        }
     }
     
     /// <summary>
@@ -399,13 +387,13 @@ public class ShapeSpriteManager : MonoBehaviour
     /// <summary>
     /// Play a small placement pop/bounce animation on a shape's tiles.
     /// </summary>
-    public void PlayPlacementAnimation(Core.Shape shape)
+    public void PlayPlacementAnimation(Shape shape)
     {
         if (shape == null) return;
         StartCoroutine(PlacementPopCoroutine(shape));
     }
 
-    private IEnumerator PlacementPopCoroutine(Core.Shape shape)
+    private IEnumerator PlacementPopCoroutine(Shape shape)
     {
         shape.CacheTileRenderers();
         var tiles = shape.TileRenderers;

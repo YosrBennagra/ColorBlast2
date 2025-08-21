@@ -346,7 +346,7 @@ namespace ColorBlast2.UI.Core
             {
                 var go = arr.GetValue(i) as GameObject;
                 if (go == null) continue;
-                var s = go.GetComponent<global::Core.Shape>();
+                var s = go.GetComponent<ColorBlast.Game.Shape>();
                 if (s == null || s.IsPlaced) continue;
                 var offs = s.ShapeOffsets;
                 if (offs == null || offs.Count == 0) continue;

@@ -92,13 +92,7 @@ public class OptimizationSettings : ScriptableObject
             Debug.Log($"Applied optimization settings to {spawners.Length} spawners");
         }
         
-        // Apply performance monitor settings
-        PerformanceMonitor monitor = FindFirstObjectByType<PerformanceMonitor>();
-        if (monitor != null)
-        {
-            monitor.updateInterval = performanceUpdateInterval;
-        }
-        
-        Debug.Log("Optimization settings applied successfully");
+    // Performance monitor removed; no-op here
+    Debug.Log("Optimization settings applied successfully (monitor disabled)");
     }
 }

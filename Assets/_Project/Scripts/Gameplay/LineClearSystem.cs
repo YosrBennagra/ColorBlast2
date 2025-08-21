@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System;
 using ColorBlast.Core.Architecture;
 using ColorBlast2.Systems.Scoring;
+using ColorBlast.Game;
 
 namespace Gameplay
 {
@@ -190,7 +191,7 @@ namespace Gameplay
         private void PlayTileClearFX(Vector2Int gridPos)
         {
             // Locate a placed shape whose offsets include this cell and use its theme
-            var shapes = FindObjectsByType<Core.Shape>(FindObjectsSortMode.None);
+            var shapes = FindObjectsByType<Shape>(FindObjectsSortMode.None);
             SpriteTheme theme = null;
             Vector3 world = gridManager.GridToWorldPosition(gridPos);
             Sprite tileSprite = null;
@@ -256,9 +257,9 @@ namespace Gameplay
             return true;
         }
         // Helper to find shape at a grid position
-        private Core.Shape FindShapeAtGridPos(Vector2Int pos)
+        private Shape FindShapeAtGridPos(Vector2Int pos)
         {
-            var shapes = FindObjectsByType<Core.Shape>(FindObjectsSortMode.None);
+            var shapes = FindObjectsByType<Shape>(FindObjectsSortMode.None);
             foreach (var s in shapes)
             {
                 if (!s.IsPlaced) continue;

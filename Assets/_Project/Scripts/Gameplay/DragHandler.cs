@@ -3,13 +3,14 @@ using UnityEngine.InputSystem;
 using System.Collections;
 using ColorBlast.Core.Architecture;
 using UnityEngine.EventSystems;
+using ColorBlast.Game;
 
 namespace Gameplay
 {
     /// <summary>
     /// Handles dragging mechanics for shapes (mouse + touch), with optional lift and sorting boost.
     /// </summary>
-    [RequireComponent(typeof(Core.Shape))]
+    [RequireComponent(typeof(Shape))]
     public class DragHandler : MonoBehaviour
     {
         [Header("Drag Settings")]
@@ -21,14 +22,14 @@ namespace Gameplay
     [Header("Smoothing")]
     [Tooltip("If true, uses SmoothDamp to move toward the pointer for a softer feel.")]
     [SerializeField] private bool smoothDrag = true;
-    [SerializeField, Min(0f)] private float dragSmoothTime = 0.06f;
-    [SerializeField, Min(0f)] private float dragMaxSpeed = 100f;
+    [SerializeField, Min(0f)] private float dragSmoothTime = 0.03f;
+    [SerializeField, Min(0f)] private float dragMaxSpeed = 150f;
 
     [Header("Drag Gating")]
     [Tooltip("Block dragging for a short time right after spawn (e.g., while pop-in animation plays).")]
-    [SerializeField] private float dragLockDurationOnSpawn = 0.3f;
+    [SerializeField] private float dragLockDurationOnSpawn = 0.1f;
     [Tooltip("Require the pointer to move at least this many screen pixels before starting a drag.")]
-    [SerializeField] private float dragStartThresholdPixels = 12f;
+    [SerializeField] private float dragStartThresholdPixels = 5f;
     [Tooltip("Apply the movement threshold only for touch drags. If false, applies to mouse too.")]
     [SerializeField] private bool thresholdOnlyOnTouch = true;
     [Tooltip("If true, begin dragging immediately on pointer down when pressing the shape (makes it pop up instantly).")]
@@ -95,7 +96,7 @@ namespace Gameplay
     [Tooltip("When dragging starts, switch the shape to the placedScale (original size).")]
     [SerializeField] private bool scaleToPlacedOnDrag = true;
 
-        private Core.Shape shape;
+        private Shape shape;
         private Camera cam;
         private Vector3 offset;
         private bool isDragging = false;
@@ -119,7 +120,7 @@ namespace Gameplay
         
         private void Start()
         {
-            shape = GetComponent<Core.Shape>();
+            shape = GetComponent<Shape>();
             cam = Camera.main;
             dragUnlockTime = Time.time + Mathf.Max(0f, dragLockDurationOnSpawn);
             cachedRenderers = GetComponentsInChildren<SpriteRenderer>(true);
@@ -648,6 +649,19 @@ namespace Gameplay
             Vector3 world = ScreenToWorld(screenPos);
             var bounds = GetBounds();
             if (bounds.size == Vector3.zero) return false;
+            
+            // Expand bounds for easier grabbing
+            // Mobile gets even more generous hit area
+            float expansion = 0.25f; // 25% larger by default
+            #if UNITY_ANDROID || UNITY_IOS || UNITY_EDITOR
+            if (Input.touchCount > 0 || Application.isMobilePlatform)
+            {
+                expansion = 0.4f; // 40% larger for touch
+            }
+            #endif
+            
+            bounds.Expand(bounds.size.magnitude * expansion);
+            
             return bounds.Contains(new Vector3(world.x, world.y, bounds.center.z));
         }
 

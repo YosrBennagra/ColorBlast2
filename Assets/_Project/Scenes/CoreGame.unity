@@ -647,7 +647,6 @@ MonoBehaviour:
   preventDuplicatesInSet: 1
   ensurePlaceableInSet: 1
   noRepeatWindow: 4
-  debugSelection: 0
   preventSameFamilyInSet: 1
   shapeFamilyLabels:
   - 
@@ -719,7 +718,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 175986016}
-  - component: {fileID: 175986017}
   m_Layer: 0
   m_Name: SpawnPoint3
   m_TagString: Untagged
@@ -742,18 +740,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 161226242}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &175986017
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 175986015}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d91eb3f1eef298498e40e0cc58a6d42, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &209902928
 GameObject:
   m_ObjectHideFlags: 0
@@ -13337,7 +13323,6 @@ MonoBehaviour:
   allowSameThemeForAllShapes: 1
   minDifferentThemes: 1
   maxDifferentThemes: 3
-  showDebugInfo: 1
   editorHelpers:
     waterSprite: {fileID: 0}
     landSprite: {fileID: 0}
@@ -13481,7 +13466,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1835034209}
-  - component: {fileID: 1835034210}
   m_Layer: 0
   m_Name: SpawnPoint1
   m_TagString: Untagged
@@ -13504,18 +13488,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 161226242}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1835034210
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1835034208}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d91eb3f1eef298498e40e0cc58a6d42, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1906795283
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEditor;
+using ColorBlast.Game;
 using System.Collections.Generic;
 
 public class ShapeCreatorTool : EditorWindow
@@ -318,7 +319,7 @@ public class ShapeCreatorTool : EditorWindow
         GameObject shapeObject = new GameObject(shapeName);
 
         // Add required components
-        Core.Shape shapeComponent = shapeObject.AddComponent<Core.Shape>();
+        Shape shapeComponent = shapeObject.AddComponent<Shape>();
         Gameplay.DragHandler dragHandler = shapeObject.AddComponent<Gameplay.DragHandler>();
 
         // Add a BoxCollider2D for mouse detection
@@ -443,7 +444,11 @@ public class ShapeCreatorTool : EditorWindow
             maxY = Mathf.Max(maxY, y + gridSize * 0.5f);
         }
 
-        collider.size = new Vector2(maxX - minX, maxY - minY);
+        // Make collider 30% larger for easier grabbing
+        float sizeX = (maxX - minX) * 1.3f;
+        float sizeY = (maxY - minY) * 1.3f;
+        
+        collider.size = new Vector2(sizeX, sizeY);
         collider.offset = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
     }
 }

@@ -1,8 +1,6 @@
 using UnityEngine;
-using ColorBlast.Gameplay;
-using ColorBlast.Core;
 using Gameplay;
-using Core;
+using ColorBlast.Game;
 
 namespace ColorBlast.Tools
 {
@@ -34,7 +32,7 @@ namespace ColorBlast.Tools
             SetupCamera();
             UpdateShapeScales();
             
-            Debug.Log("✅ Mobile layout setup complete!");
+            Debug.Log("Mobile layout setup complete!");
         }
         
         private void SetupGrid()
@@ -109,9 +107,10 @@ namespace ColorBlast.Tools
         
         private Transform[] FindSpawnPoints()
         {
-            var spawnPoint1 = GameObject.Find("SpawnPoint_1")?.transform;
-            var spawnPoint2 = GameObject.Find("SpawnPoint_2")?.transform;
-            var spawnPoint3 = GameObject.Find("SpawnPoint_3")?.transform;
+            // Support both naming conventions: SpawnPoint_1..3 and SpawnPoint1..3
+            var spawnPoint1 = (GameObject.Find("SpawnPoint_1") ?? GameObject.Find("SpawnPoint1"))?.transform;
+            var spawnPoint2 = (GameObject.Find("SpawnPoint_2") ?? GameObject.Find("SpawnPoint2"))?.transform;
+            var spawnPoint3 = (GameObject.Find("SpawnPoint_3") ?? GameObject.Find("SpawnPoint3"))?.transform;
             
             var points = new System.Collections.Generic.List<Transform>();
             if (spawnPoint1 != null) points.Add(spawnPoint1);

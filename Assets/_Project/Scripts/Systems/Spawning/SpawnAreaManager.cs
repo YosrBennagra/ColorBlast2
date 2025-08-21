@@ -65,12 +65,8 @@ public class SpawnAreaManager : MonoBehaviour
                 layoutElement.preferredWidth = layoutSettings.spawnPointSize;
                 layoutElement.preferredHeight = layoutSettings.spawnPointSize;
                 
-                // Add visualizer for editor
-                if (layoutSettings.showSpawnAreas)
-                {
-                    SpawnPointVisualizer visualizer = newSpawnPoint.AddComponent<SpawnPointVisualizer>();
-                    // Set visualizer color if the script exists
-                }
+                // Optional: add a visual indicator script if available
+                // (Visualizer removed to avoid dependency on missing component)
             }
             
             spawnPoints[i] = existingPoint;

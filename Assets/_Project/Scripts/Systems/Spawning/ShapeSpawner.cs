@@ -1,6 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
-using Core;
+using ColorBlast.Game;
 
 [ExecuteAlways]
 public class ShapeSpawner : MonoBehaviour
@@ -46,8 +46,6 @@ public class ShapeSpawner : MonoBehaviour
     [SerializeField] private bool ensurePlaceableInSet = true;
     [Tooltip("Keep a short recent history to avoid immediate repeats across sets (0 disables).")]
     [SerializeField, Min(0)] private int noRepeatWindow = 4;
-    [Tooltip("Log deterministic selection details for debugging.")]
-    [SerializeField] private bool debugSelection = false;
     [Tooltip("Avoid picking multiple shapes from the same family (e.g., L/I/T) within one set of 3.")]
     [SerializeField] private bool preventSameFamilyInSet = true;
     [Tooltip("Optional family labels aligned with shapePrefabs (e.g., L, I, T, O, Z). Empty entries fallback to prefab name prefix.")]
@@ -284,7 +282,7 @@ public class ShapeSpawner : MonoBehaviour
             
             if (currentShapes[i] != null)
             {
-                var shapeComponent = currentShapes[i].GetComponent<Core.Shape>();
+                var shapeComponent = currentShapes[i].GetComponent<Shape>();
                 if (shapeComponent != null && shapeComponent.IsPlaced)
                 {
                     currentStatus = true;
@@ -342,10 +340,6 @@ public class ShapeSpawner : MonoBehaviour
         if (useDeterministicSelection)
         {
             var indices = DetermineNextSetIndices();
-            if (debugSelection)
-            {
-                Debug.Log($"[ShapeSpawner] Next set indices: {indices[0]}, {indices[1]}, {indices[2]} | deferred={deferredIndices.Count} recent={recentIndices.Count} cursor={bagCursor}");
-            }
             var newlySpawnedShapes = new List<GameObject>(3);
             for (int i = 0; i < 3; i++)
             {
@@ -451,10 +445,6 @@ public class ShapeSpawner : MonoBehaviour
                 bagCursor = Random.Range(0, bag.Count);
             }
             initialBagRandomized = true;
-            if (debugSelection)
-            {
-                Debug.Log($"[ShapeSpawner] Initial deterministic bag shuffled. Order={string.Join(",", bag)} cursor={bagCursor}");
-            }
         }
         if (bagCursor >= bag.Count) bagCursor = 0;
     }
@@ -563,7 +553,7 @@ public class ShapeSpawner : MonoBehaviour
         spawnedShape.transform.localScale = baseScale;
 
         // Apply an orientation variant first so centering/fitting uses final layout
-        var shapeComponent = spawnedShape.GetComponent<Core.Shape>();
+        var shapeComponent = spawnedShape.GetComponent<Shape>();
         if (enableOrientationVariants && shapeComponent != null)
         {
             TryApplyOrientationVariant(shapeComponent, prefabIndex, spawnIndex);
@@ -604,7 +594,7 @@ public class ShapeSpawner : MonoBehaviour
         return spawnedShape;
     }
 
-    private void TryApplyOrientationVariant(Core.Shape shape, int prefabIndex, int spawnIndex)
+    private void TryApplyOrientationVariant(Shape shape, int prefabIndex, int spawnIndex)
     {
         var baseOffsets = new List<Vector2Int>(shape.ShapeOffsets);
         if (baseOffsets == null || baseOffsets.Count == 0) return;
@@ -723,7 +713,7 @@ public class ShapeSpawner : MonoBehaviour
     private List<Vector2Int> GetOffsets(GameObject prefab)
     {
         if (prefab == null) return null;
-        var s = prefab.GetComponent<Core.Shape>();
+        var s = prefab.GetComponent<Shape>();
         return s != null ? s.ShapeOffsets : null;
     }
 
@@ -790,7 +780,7 @@ public class ShapeSpawner : MonoBehaviour
             if (TryCenterByRenderers(shapeGO, targetCenter)) return;
         }
 
-        var shape = shapeGO.GetComponent<Core.Shape>();
+        var shape = shapeGO.GetComponent<Shape>();
         if (shape == null || shape.ShapeOffsets == null || shape.ShapeOffsets.Count == 0) return;
 
         float cell = 1f;
@@ -890,7 +880,7 @@ public class ShapeSpawner : MonoBehaviour
         {
             if (currentShapes[i] != null)
             {
-                var shapeComponent = currentShapes[i].GetComponent<Core.Shape>();
+                var shapeComponent = currentShapes[i].GetComponent<Shape>();
                 if (shapeComponent != null && shapeComponent.IsPlaced)
                 {
                     count++;
@@ -919,7 +909,7 @@ public class ShapeSpawner : MonoBehaviour
         {
             var go = currentShapes[i];
             if (go == null) continue; // destroyed counts as placed
-            var s = go.GetComponent<Core.Shape>();
+            var s = go.GetComponent<Shape>();
             if (s == null) continue;
             if (s.IsPlaced) continue; // Ignore shapes already locked on the board
             foundUnplacedShape = true;
@@ -948,7 +938,7 @@ public class ShapeSpawner : MonoBehaviour
         {
             var go = currentShapes[i];
             if (go == null) continue;
-            var s = go.GetComponent<Core.Shape>();
+            var s = go.GetComponent<Shape>();
             if (s != null && !s.IsPlaced)
             {
                 Destroy(go);

@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using ColorBlast.Core.Architecture;
+using ColorBlast.Game;
 
 namespace Gameplay
 {
@@ -37,7 +38,7 @@ namespace Gameplay
             lineClearSystem = Services.Get<LineClearSystem>();
         }
         
-        public bool CanPlaceShape(Core.Shape shape, Vector2Int gridPosition)
+        public bool CanPlaceShape(Shape shape, Vector2Int gridPosition)
         {
             if (gridManager == null || shape == null) return false;
             
@@ -80,7 +81,7 @@ namespace Gameplay
             return allowPartialOverlap ? validTiles > 0 : validTiles == totalTiles;
         }
         
-        public bool TryPlaceShape(Core.Shape shape)
+        public bool TryPlaceShape(Shape shape)
         {
             Vector2Int gridPosition = shape.GetGridPosition();
             
@@ -138,7 +139,7 @@ namespace Gameplay
             return true;
         }
         
-        private void PlaceShapeOnGrid(Core.Shape shape, Vector2Int gridPosition)
+        private void PlaceShapeOnGrid(Shape shape, Vector2Int gridPosition)
         {
             foreach (Vector2Int shapeOffset in shape.ShapeOffsets)
             {
@@ -147,7 +148,7 @@ namespace Gameplay
             }
         }
         
-        public void RemoveShapeFromGrid(Core.Shape shape)
+        public void RemoveShapeFromGrid(Shape shape)
         {
             Vector2Int currentGridPos = shape.GetGridPosition();
             foreach (Vector2Int shapeOffset in shape.ShapeOffsets)

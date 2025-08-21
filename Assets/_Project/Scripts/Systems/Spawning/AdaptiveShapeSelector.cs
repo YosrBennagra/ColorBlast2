@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Gameplay;
-using Core;
+using ColorBlast.Game;
 using ColorBlast.Core.Architecture;
 
 /// <summary>

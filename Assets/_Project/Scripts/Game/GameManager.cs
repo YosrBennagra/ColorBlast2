@@ -1,8 +1,9 @@
 using UnityEngine;
 using ColorBlast.Core.Architecture;
+using ColorBlast.Core.Data;
 using Gameplay;
 
-namespace Core
+namespace ColorBlast.Game
 {
     /// <summary>
     /// Main game manager that initializes and coordinates all game systems
@@ -91,6 +92,9 @@ namespace Core
             
             try
             {
+                // Apply performance settings first
+                ApplyPerformanceSettings();
+                
                 // ServiceLocator is automatically initialized when first accessed
                 // No need to manually create or register it
                 
@@ -159,6 +163,34 @@ namespace Core
             {
                 Debug.LogError($"❌ Failed to initialize game systems: {ex.Message}");
             }
+        }
+        
+        /// <summary>
+        /// Apply performance settings from GameConfiguration
+        /// </summary>
+        private void ApplyPerformanceSettings()
+        {
+            // Try to find GameConfiguration asset
+            var gameConfig = Resources.Load<GameConfiguration>("GameConfig");
+            if (gameConfig == null)
+            {
+                // Fallback: set default high frame rate
+                Application.targetFrameRate = 90;
+                if (enableDebugLogs)
+                    Debug.Log("⚡ Frame rate set to 90 FPS (default - no GameConfig found)");
+            }
+            else
+            {
+                // Apply frame rate from configuration
+                Application.targetFrameRate = gameConfig.targetFrameRate;
+                if (enableDebugLogs)
+                    Debug.Log($"⚡ Frame rate set to {gameConfig.targetFrameRate} FPS from GameConfiguration");
+            }
+            
+            // Disable VSync to allow higher frame rates
+            QualitySettings.vSyncCount = 0;
+            if (enableDebugLogs)
+                Debug.Log("⚡ VSync disabled for higher frame rates");
         }
         
         private void OnDestroy()

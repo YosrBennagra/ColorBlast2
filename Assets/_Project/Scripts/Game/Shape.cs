@@ -1,8 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using Gameplay;
+using ColorBlast.Core.Architecture;
 
-namespace Core
+namespace ColorBlast.Game
 {
     /// <summary>
     /// Represents a shape that can be placed on the grid
@@ -107,9 +109,9 @@ namespace Core
         public Vector2Int GetGridPosition()
         {
             // Use GridManager's conversion method for accurate positioning
-            if (ColorBlast.Core.Architecture.Services.Has<Gameplay.GridManager>())
+            if (Services.Has<GridManager>())
             {
-                var gridManager = ColorBlast.Core.Architecture.Services.Get<Gameplay.GridManager>();
+                var gridManager = Services.Get<GridManager>();
                 return gridManager.WorldToGridPosition(transform.position);
             }
 

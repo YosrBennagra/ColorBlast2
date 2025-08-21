@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using ColorBlast.Core.Architecture;
+using ColorBlast.Game;
 
 namespace Gameplay
 {
@@ -32,7 +33,7 @@ namespace Gameplay
         
         public int DestroyShapesAtPositions(List<Vector2Int> clearedPositions)
         {
-            var allShapes = FindObjectsByType<Core.Shape>(FindObjectsSortMode.None);
+            var allShapes = FindObjectsByType<Shape>(FindObjectsSortMode.None);
             int affectedShapes = 0;
             
             foreach (var shape in allShapes)
@@ -62,7 +63,7 @@ namespace Gameplay
             return affectedShapes;
         }
         
-        private void RemoveClearedTilesFromShape(Core.Shape shape, Vector2Int shapeGridPos, List<Vector2Int> clearedPositions)
+        private void RemoveClearedTilesFromShape(Shape shape, Vector2Int shapeGridPos, List<Vector2Int> clearedPositions)
         {
             List<Vector2Int> remainingOffsets = new List<Vector2Int>();
             
@@ -90,12 +91,12 @@ namespace Gameplay
             }
         }
         
-        private void CreatePartialShape(List<Vector2Int> offsets, Vector3 position, string name, Core.Shape originalShape)
+        private void CreatePartialShape(List<Vector2Int> offsets, Vector3 position, string name, Shape originalShape)
         {
             GameObject newShapeObj = new GameObject(name);
             newShapeObj.transform.position = position;
             
-            var newShape = newShapeObj.AddComponent<Core.Shape>();
+            var newShape = newShapeObj.AddComponent<Shape>();
             newShape.SetShapeOffsets(offsets);
             newShape.MarkAsPlaced();
             
@@ -110,7 +111,7 @@ namespace Gameplay
             CopyOriginalTiles(originalShape, newShape, offsets);
         }
         
-        private void CopyOriginalTiles(Core.Shape originalShape, Core.Shape newShape, List<Vector2Int> remainingOffsets)
+        private void CopyOriginalTiles(Shape originalShape, Shape newShape, List<Vector2Int> remainingOffsets)
         {
             Transform[] originalChildren = new Transform[originalShape.transform.childCount];
             for (int i = 0; i < originalShape.transform.childCount; i++)
@@ -160,7 +161,7 @@ namespace Gameplay
             newShape.CacheTileRenderers();
         }
         
-        private void CreateSimpleTile(Core.Shape shape, Vector2Int offset, Color tileColor)
+        private void CreateSimpleTile(Shape shape, Vector2Int offset, Color tileColor)
         {
             GameObject tile = new GameObject("SimpleTile");
             tile.transform.SetParent(shape.transform);

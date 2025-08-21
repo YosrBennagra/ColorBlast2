@@ -1,3 +1,4 @@
+#if false
 using UnityEngine;
 
 /// <summary>
@@ -74,7 +75,7 @@ public class PerformanceMonitor : MonoBehaviour
             {
                 var gridManager = ColorBlast.Core.Architecture.Services.Get<Gameplay.GridManager>();
                 var occupiedPositions = gridManager.GetOccupiedPositions();
-                text += $"Active Shapes: {FindObjectsByType<Core.Shape>(FindObjectsSortMode.None).Length}\n";
+                text += $"Active Shapes: {FindObjectsByType<Shape>(FindObjectsSortMode.None).Length}\n";
                 text += $"Occupied Tiles: {occupiedPositions.Count}\n";
             }
             else
@@ -95,3 +96,4 @@ public class PerformanceMonitor : MonoBehaviour
         GUI.Label(new Rect(15, 15, 240, 90), text);
     }
 }
+#endif

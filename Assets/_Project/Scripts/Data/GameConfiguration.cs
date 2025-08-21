@@ -45,7 +45,7 @@ namespace ColorBlast.Core.Data
         public bool useObjectPooling = true;
         public int maxPoolSize = 50;
         public bool enablePerformanceMonitoring = false;
-        public int targetFrameRate = 60;
+        public int targetFrameRate = 90;
 
         [Header("Debug Settings")]
         public bool enableDebugMode = false;
@@ -80,7 +80,7 @@ namespace ColorBlast.Core.Data
 
             // Ensure valid performance settings
             maxPoolSize = Mathf.Max(10, maxPoolSize);
-            targetFrameRate = Mathf.Clamp(targetFrameRate, 30, 120);
+            targetFrameRate = Mathf.Clamp(targetFrameRate, 30, 144);
 
             // Ensure valid visual settings
             gridLineAlpha = Mathf.Clamp01(gridLineAlpha);
@@ -122,7 +122,7 @@ namespace ColorBlast.Core.Data
             useObjectPooling = true;
             maxPoolSize = 50;
             enablePerformanceMonitoring = false;
-            targetFrameRate = 60;
+            targetFrameRate = 90;
 
             enableDebugMode = false;
             showGridGizmos = true;

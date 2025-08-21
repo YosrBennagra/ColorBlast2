@@ -51,7 +51,7 @@ public static class AudioShim
 
     private static bool InvokeOnAudioManager(string method, object[] args)
     {
-        var allBehaviours = GameObject.FindObjectsOfType<MonoBehaviour>();
+    var allBehaviours = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
         for (int i = 0; i < allBehaviours.Length; i++)
         {
             var mb = allBehaviours[i];
