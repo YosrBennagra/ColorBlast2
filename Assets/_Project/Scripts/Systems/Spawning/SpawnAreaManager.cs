@@ -86,7 +86,7 @@ public class SpawnAreaManager : MonoBehaviour
         ShapeSpawner spawner = FindFirstObjectByType<ShapeSpawner>();
         if (spawner != null)
         {
-            spawner.SetSpawnPoints(spawnPoints);
+            spawner.AssignSpawnPoints(spawnPoints);
             Debug.Log("Spawn points automatically assigned to ShapeSpawner!");
         }
         else
