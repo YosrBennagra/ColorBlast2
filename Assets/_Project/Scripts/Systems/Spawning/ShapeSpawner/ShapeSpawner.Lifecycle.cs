@@ -53,10 +53,22 @@ public partial class ShapeSpawner
             CheckIfAllShapesPlaced();
         }
 
-        // adaptive assist tick (optional)
+        // adaptive assist tick (optional) + difficulty ramp
         if (adaptiveAssistMode)
         {
             TickAdaptiveAssist();
+        }
+        if (rampDifficultyOverTime)
+        {
+            float ramp = Mathf.Clamp01(setsSpawnedCount / Mathf.Max(1f, (float)setsToReachMaxDifficulty));
+            float targetDiff = Mathf.Clamp01(Mathf.Max(difficulty, ramp));
+            // tighten assist window as difficulty rises
+            float baseFloor = 0.15f;
+            float baseCeil = 0.9f;
+            float hardFloor = 0.05f;
+            float hardCeil = 0.6f;
+            minAssist = Mathf.Lerp(baseFloor, hardFloor, targetDiff);
+            maxAssist = Mathf.Lerp(baseCeil, hardCeil, targetDiff);
         }
 
         // dead-end reroll timer

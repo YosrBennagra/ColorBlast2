@@ -58,6 +58,14 @@ namespace ColorBlast2.UI.Core
     [SerializeField] private string showTrigger = "Show";
     [Tooltip("Name of the trigger to play pulse animation each second.")]
     [SerializeField] private string tickTrigger = "Tick";
+    [Tooltip("Optional label to display remaining ad-based revives.")]
+    [SerializeField] private TMPro.TextMeshProUGUI reviveRemainingText;
+    [Tooltip("Format for the remaining revive label; {0} will be replaced by remaining count.")]
+    [SerializeField] private string reviveRemainingFormat = "Revives left: {0}";
+    [Tooltip("Optional status label for ad availability (e.g., no internet).")]
+    [SerializeField] private TMPro.TextMeshProUGUI adStatusText;
+    [Tooltip("Message to display when there is no internet connection.")]
+    [SerializeField] private string noInternetMessage = "No internet connection";
     [Tooltip("Scene name to load when game ends (after short ad).")]
     [SerializeField] private string gameEndSceneName = "GameEnd";
     [Tooltip("Force at least this many guaranteed-fit shapes on revive (2 per spec).")]
@@ -69,6 +77,10 @@ namespace ColorBlast2.UI.Core
     private float countdownRemaining;
     private bool reviveChosen = false;
     private bool awaitingAd = false;
+    [Header("Revive Limits")]
+    [Tooltip("Maximum number of ad-based revives allowed per run.")]
+    [SerializeField] private int maxRevivesWithAds = 3;
+    private int revivesUsedWithAds = 0;
     [Header("Ads Integration")]
     [Tooltip("If true, will attempt to use AdService (Unity Ads / provider) instead of simulation.")]
     [SerializeField] private bool useRealAds = true;
@@ -85,6 +97,8 @@ namespace ColorBlast2.UI.Core
             if (gridManager == null) gridManager = FindFirstObjectByType<Gameplay.GridManager>();
             if (gameOverPanel != null) gameOverPanel.SetActive(false); // Ensure hidden at start
             SetupPanelCanvas();
+            // Try to auto-wire revive remaining label if not assigned
+            AutoWireReviveUI();
             if (watchAdButton != null)
             {
                 watchAdButton.onClick.RemoveAllListeners();
@@ -99,6 +113,8 @@ namespace ColorBlast2.UI.Core
                     audioSource.playOnAwake = false;
                 }
             }
+            // Pre-populate label text even while panel hidden (for consistency once shown)
+            UpdateReviveUI();
         }
 
         private void SetupPanelCanvas()
@@ -155,6 +171,7 @@ namespace ColorBlast2.UI.Core
                 RaiseAboveAllSprites();
             }
             if (gameOverPanel != null) gameOverPanel.SetActive(true);
+            UpdateReviveUI();
             EnforceChildCanvasOverride();
             if (logOnGameOver)
             {
@@ -254,6 +271,13 @@ namespace ColorBlast2.UI.Core
         private void OnWatchAdClicked()
         {
             if (reviveChosen || awaitingAd) return;
+            if (!CanReviveWithAds()) return;
+            if (!IsInternetAvailable())
+            {
+                // Show offline message and do not attempt ad
+                ShowAdStatus(noInternetMessage);
+                return;
+            }
             reviveChosen = true;
             countdownActive = false;
         PlayRewardedThenRevive();
@@ -297,7 +321,99 @@ namespace ColorBlast2.UI.Core
 
     private void HandleRewardedFinished()
         {
+            // Count this successful ad-based revive
+            if (maxRevivesWithAds > 0)
+            {
+                revivesUsedWithAds = Mathf.Clamp(revivesUsedWithAds + 1, 0, Mathf.Max(0, maxRevivesWithAds));
+            }
             RevivePlayer();
+        }
+
+        private bool CanReviveWithAds()
+        {
+            if (maxRevivesWithAds <= 0) return false;
+            return revivesUsedWithAds < maxRevivesWithAds;
+        }
+
+        private int GetRevivesRemaining()
+        {
+            if (maxRevivesWithAds <= 0) return 0;
+            int remain = maxRevivesWithAds - revivesUsedWithAds;
+            return Mathf.Max(0, remain);
+        }
+
+        private void UpdateReviveUI()
+        {
+            bool canRevive = CanReviveWithAds();
+            bool online = IsInternetAvailable();
+            // Update label
+            if (reviveRemainingText != null)
+            {
+                int remaining = GetRevivesRemaining();
+                // Guard format
+                if (!string.IsNullOrEmpty(reviveRemainingFormat) && reviveRemainingFormat.Contains("{0}"))
+                    reviveRemainingText.text = string.Format(reviveRemainingFormat, remaining);
+                else
+                    reviveRemainingText.text = remaining.ToString();
+                reviveRemainingText.gameObject.SetActive(true);
+            }
+            else
+            {
+                Debug.LogWarning("[GameOverManager] reviveRemainingText is not assigned. Assign it in the Inspector or rename your TMP Text to include 'revive' and 'left' so it can auto-wire.");
+            }
+            // Update button
+            if (watchAdButton != null)
+            {
+                watchAdButton.gameObject.SetActive(canRevive);
+                watchAdButton.interactable = canRevive && online;
+            }
+            // Update status for connectivity
+            if (adStatusText != null)
+            {
+                if (!online)
+                {
+                    adStatusText.text = string.IsNullOrEmpty(noInternetMessage) ? "No internet" : noInternetMessage;
+                    adStatusText.gameObject.SetActive(true);
+                }
+                else
+                {
+                    adStatusText.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        private void AutoWireReviveUI()
+        {
+            if (gameOverPanel == null) return;
+            // Look for TMP texts under the panel to auto-wire both labels
+            var tmps = gameOverPanel.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true);
+            for (int i = 0; i < tmps.Length; i++)
+            {
+                var t = tmps[i]; if (t == null) continue;
+                string n = t.name.ToLowerInvariant();
+                if (reviveRemainingText == null && (n.Contains("revive") || n.Contains("continue")) && (n.Contains("left") || n.Contains("remain") || n.Contains("remaining")))
+                {
+                    reviveRemainingText = t;
+                    continue;
+                }
+                if (adStatusText == null && (n.Contains("internet") || n.Contains("network") || n.Contains("offline") || n.Contains("connect")))
+                {
+                    adStatusText = t;
+                    continue;
+                }
+            }
+        }
+
+        private bool IsInternetAvailable()
+        {
+            return Application.internetReachability != NetworkReachability.NotReachable;
+        }
+
+        private void ShowAdStatus(string message)
+        {
+            if (adStatusText == null) return;
+            adStatusText.text = string.IsNullOrEmpty(message) ? noInternetMessage : message;
+            adStatusText.gameObject.SetActive(true);
         }
 
         private void RevivePlayer()

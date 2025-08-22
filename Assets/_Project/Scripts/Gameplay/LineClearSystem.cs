@@ -119,6 +119,11 @@ namespace Gameplay
                 {
                     scoreManager.AddBlockPoints(totalBlocksCleared);
                     scoreManager.AddLineClearBonus(anySameSpriteLine);
+                    // Perfect Clear: if no occupied cells remain after cascades
+                    if (gridManager.GetOccupiedPositions().Count == 0)
+                    {
+                        scoreManager.AddPerfectClearBonus();
+                    }
                 }
             }
             

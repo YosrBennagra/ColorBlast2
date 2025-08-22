@@ -48,6 +48,13 @@ namespace Gameplay
                     {
                         Vector3 world = ScreenToWorld(pressScreen);
                         StartDrag(world);
+                        // Play move SFX on grab begin
+                        var mgr = ShapeSpriteManager.Instance != null ? ShapeSpriteManager.Instance : Object.FindFirstObjectByType<ShapeSpriteManager>();
+                        if (mgr != null)
+                        {
+                            var theme = mgr.GetShapeTheme(gameObject);
+                            mgr.PlayMoveAt(transform.position, theme);
+                        }
                         activeTouchId = pressId;
                         isTouchDrag = activeTouchId >= 0;
                         if (boostSortingOrderOnDrag) BoostSortingOrder();
@@ -105,6 +112,13 @@ namespace Gameplay
                                 // Start drag now
                                 Vector3 world = ScreenToWorld(curScreen);
                                 StartDrag(world);
+                                // Play move SFX on grab begin
+                                var mgr = ShapeSpriteManager.Instance != null ? ShapeSpriteManager.Instance : Object.FindFirstObjectByType<ShapeSpriteManager>();
+                                if (mgr != null)
+                                {
+                                    var theme = mgr.GetShapeTheme(gameObject);
+                                    mgr.PlayMoveAt(transform.position, theme);
+                                }
                                 activeTouchId = primedTouchId;
                                 isTouchDrag = activeTouchId >= 0;
                                 if (boostSortingOrderOnDrag) BoostSortingOrder();

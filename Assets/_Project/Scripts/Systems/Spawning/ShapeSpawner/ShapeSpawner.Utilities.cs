@@ -31,6 +31,28 @@ public partial class ShapeSpawner
         return count;
     }
 
+    // Pick a big shape by tile count threshold; optionally require at least one valid placement.
+    private int FindBigShapeIndex(int minTiles, bool preferPlaceable)
+    {
+        if (shapePrefabs == null || shapePrefabs.Length == 0) return -1;
+        var gm = GetGridManager();
+        var candidates = new List<int>();
+        for (int i = 0; i < shapePrefabs.Length; i++)
+        {
+            var offs = GetOffsets(shapePrefabs[i]);
+            if (offs == null) continue;
+            if (offs.Count >= Mathf.Max(1, minTiles))
+            {
+                if (!preferPlaceable || (gm != null && CountValidPlacements(gm, offs) > 0))
+                {
+                    candidates.Add(i);
+                }
+            }
+        }
+        if (candidates.Count == 0) return -1;
+        return candidates[Random.Range(0, candidates.Count)];
+    }
+
     private Vector3 GetBaseScaleForSlot(int index)
     {
         if (perSlotScale != null && perSlotScale.Length == 3)

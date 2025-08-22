@@ -205,8 +205,8 @@ public partial class ShapeSpawner
             };
         }
 
-        // 1) Best helper
-        valid.Sort((a, b) => b.score.CompareTo(a.score));
+    // 1) Best helper - as difficulty rises, slightly bias toward picks that don't trivially create clears
+    valid.Sort((a, b) => b.score.CompareTo(a.score));
         result[0] = valid[0].idx;
 
         // 2) Variety: avoid same family and size; pick mid-ranked
@@ -223,10 +223,12 @@ public partial class ShapeSpawner
         int mid = Mathf.Clamp(variety.Count / 2, 0, variety.Count - 1);
         result[1] = variety[mid].idx;
 
-        // 3) Challenge: smallest piece that still keeps at least one valid move after placement
-        var smallFirst = new List<(int idx, float score, int tiles)>(valid);
-        smallFirst.Sort((a, b) => a.tiles.CompareTo(b.tiles));
-        result[2] = smallFirst[0].idx;
+    // 3) Challenge: at higher difficulty, prefer larger or mid-large piece to increase commitment
+    var bySize = new List<(int idx, float score, int tiles)>(valid);
+    bySize.Sort((a, b) => a.tiles.CompareTo(b.tiles));
+    int pickIndex = 0; // smallest by default
+    if (Mathf.Clamp01(difficulty) > 0.4f) pickIndex = Mathf.Min(bySize.Count - 1, Mathf.RoundToInt(Mathf.Lerp(0, bySize.Count - 1, Mathf.Clamp01(difficulty))));
+    result[2] = bySize[pickIndex].idx;
 
         // Ensure at least one placeable in set
         if (ensurePlaceableInSet)
@@ -237,7 +239,117 @@ public partial class ShapeSpawner
                 result[0] = valid[0].idx;
             }
         }
+        // As difficulty increases, try to introduce overlap between first two best placements to force a choice
+        if (Mathf.Clamp01(difficulty) > 0.5f)
+        {
+            var gm2 = GetGridManager();
+            if (gm2 != null)
+            {
+                var aOff = GetOffsets(shapePrefabs[result[0]]);
+                var bOff = GetOffsets(shapePrefabs[result[1]]);
+                if (aOff != null && bOff != null)
+                {
+                    int overlapBest = 0;
+                    for (int ax = 0; ax < gm2.GridWidth; ax++)
+                    for (int ay = 0; ay < gm2.GridHeight; ay++)
+                    {
+                        if (!gm2.CanPlaceShape(new Vector2Int(ax, ay), aOff)) continue;
+                        var aFoot = new HashSet<Vector2Int>(); foreach (var o in aOff) aFoot.Add(new Vector2Int(ax + o.x, ay + o.y));
+                        for (int bx = 0; bx < gm2.GridWidth; bx++)
+                        for (int by = 0; by < gm2.GridHeight; by++)
+                        {
+                            if (!gm2.CanPlaceShape(new Vector2Int(bx, by), bOff)) continue;
+                            int ov = 0; foreach (var o in bOff) { var p = new Vector2Int(bx + o.x, by + o.y); if (aFoot.Contains(p)) ov++; }
+                            if (ov > overlapBest) overlapBest = ov;
+                        }
+                    }
+                    // If no overlap found, try swapping second with a closer-by-score candidate to increase odds
+                    if (overlapBest == 0 && valid.Count > 2)
+                    {
+                        for (int i = 2; i < Mathf.Min(valid.Count, 6); i++)
+                        {
+                            var bAltOff = GetOffsets(shapePrefabs[valid[i].idx]);
+                            if (bAltOff == null) continue;
+                            bool anyValid = false;
+                            for (int bx = 0; bx < gm2.GridWidth && !anyValid; bx++)
+                            for (int by = 0; by < gm2.GridHeight && !anyValid; by++)
+                            {
+                                if (!gm2.CanPlaceShape(new Vector2Int(bx, by), bAltOff)) continue;
+                                anyValid = true;
+                            }
+                            // lightweight heuristic: prefer different family + similar size when swapping
+                            if (!preventSameFamilyInSet || GetFamilyLabel(valid[i].idx) != GetFamilyLabel(result[0]))
+                            { result[1] = valid[i].idx; break; }
+                        }
+                    }
+                }
+            }
+        }
         return result;
+    }
+
+    // Check if a single shape can be placed such that all current occupied cells are cleared in one LineClear pass.
+    // Returns true with the prefab index and preferred slot (0..2) to inject.
+    private bool TryGetPerfectClearIndex(out int prefabIndex, out int slot)
+    {
+        prefabIndex = -1; slot = -1;
+        if (!enablePerfectClearOpportunities) return false;
+        var gm = GetGridManager();
+        if (gm == null || shapePrefabs == null || shapePrefabs.Length == 0) return false;
+        var occupied = gm.GetOccupiedPositions();
+        if (occupied == null || occupied.Count < perfectClearMinOccupied) return false;
+        if (Random.value > perfectClearChance) return false;
+
+        // Heuristic: If placing a shape leads to every row and column that contains an occupied cell being full, we’ll treat as potential all-clear.
+        // Simpler proxy: simulate placement, then count full rows/cols across entire board; if total cleared cells >= occupied count and no leftover occupied after clear, accept.
+        for (int i = 0; i < shapePrefabs.Length; i++)
+        {
+            var offs = GetOffsets(shapePrefabs[i]);
+            if (offs == null || offs.Count == 0) continue;
+            for (int x = 0; x < gm.GridWidth; x++)
+            {
+                for (int y = 0; y < gm.GridHeight; y++)
+                {
+                    var start = new Vector2Int(x, y);
+                    if (!gm.CanPlaceShape(start, offs)) continue;
+                    int cleared = EstimateLinesClearedIfPlaced(gm, occupied, offs, start, out int remainingAfter);
+                    if (remainingAfter == 0 && cleared >= occupied.Count)
+                    {
+                        prefabIndex = i;
+                        // choose a random slot to keep variety
+                        slot = Random.Range(0, 3);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private int EstimateLinesClearedIfPlaced(Gameplay.GridManager gm, HashSet<Vector2Int> occupied, List<Vector2Int> offsets, Vector2Int start, out int remainingAfter)
+    {
+        int W = gm.GridWidth, H = gm.GridHeight;
+        var sim = new HashSet<Vector2Int>(occupied);
+        foreach (var o in offsets) sim.Add(start + o);
+        // determine full rows/cols
+        var clearedCells = new HashSet<Vector2Int>();
+        for (int y = 0; y < H; y++)
+        {
+            bool full = true;
+            for (int x = 0; x < W; x++) { if (!sim.Contains(new Vector2Int(x, y))) { full = false; break; } }
+            if (full) { for (int x = 0; x < W; x++) clearedCells.Add(new Vector2Int(x, y)); }
+        }
+        for (int x = 0; x < W; x++)
+        {
+            bool full = true;
+            for (int y = 0; y < H; y++) { if (!sim.Contains(new Vector2Int(x, y))) { full = false; break; } }
+            if (full) { for (int y = 0; y < H; y++) clearedCells.Add(new Vector2Int(x, y)); }
+        }
+        // remaining = sim - cleared
+        int remaining = 0;
+        foreach (var p in sim) if (!clearedCells.Contains(p)) remaining++;
+        remainingAfter = remaining;
+        return clearedCells.Count;
     }
 
     // Challenge set aims to present two shapes whose best placements overlap, forcing a decision.

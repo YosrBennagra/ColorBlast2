@@ -115,4 +115,38 @@ public partial class ShapeSpawner : MonoBehaviour
     private float noMoveTimer = 0f;
     private int rerollsUsed = 0;
     private int setsSpawnedCount = 0;
+
+    [Header("Difficulty")]
+    [Tooltip("0 = easiest, 1 = hardest. Affects set composition, challenge frequency, and perfect-clear generosity.")]
+    [SerializeField, Range(0f, 1f)] private float difficulty = 0.7f;
+    [Tooltip("Gradually ramp difficulty up over time.")]
+    [SerializeField] private bool rampDifficultyOverTime = true;
+    [Tooltip("Number of spawned sets to reach max ramp contribution.")]
+    [SerializeField, Min(1)] private int setsToReachMaxDifficulty = 20;
+
+    [Header("Perfect Clear Opportunities")]
+    [Tooltip("Occasionally, if a single placement can clear the entire board, include that exact shape in the tray.")]
+    [SerializeField] private bool enablePerfectClearOpportunities = true;
+    [Tooltip("Chance to inject a perfect-clear shape when an opportunity exists.")]
+    [SerializeField, Range(0f,1f)] private float perfectClearChance = 0.35f;
+    [Tooltip("Only search when the board has at least this many occupied cells (avoids trivial empty-board checks).")]
+    [SerializeField, Min(0)] private int perfectClearMinOccupied = 6;
+    [Tooltip("For a perfect-clear piece, keep its identity orientation (no rotate/mirror) to preserve the opportunity.")]
+    [SerializeField] private bool perfectClearKeepIdentityOrientation = true;
+
+    // Runtime marks for the last injected perfect-clear piece
+    private int lastPerfectClearSlot = -1;
+    private int lastPerfectClearIndex = -1;
+
+    [Header("Early Big-Shape Surprises")]
+    [Tooltip("During the first few sets, very rarely inject one large piece to spice up early decisions.")]
+    [SerializeField] private bool enableEarlyBigShapeSurprises = true;
+    [Tooltip("How many initial sets are considered the 'beginning' window.")]
+    [SerializeField, Min(1)] private int earlyBigShapeSetsWindow = 5;
+    [Tooltip("Chance per spawn to inject a big shape during the early window (rare).")]
+    [SerializeField, Range(0f,1f)] private float earlyBigShapeChance = 0.06f;
+    [Tooltip("Minimum tile count to consider a shape 'big'.")]
+    [SerializeField, Min(1)] private int earlyBigShapeMinTiles = 5;
+    [Tooltip("Prefer big shapes that are actually placeable on the current board.")]
+    [SerializeField] private bool earlyBigShapePreferPlaceable = true;
 }

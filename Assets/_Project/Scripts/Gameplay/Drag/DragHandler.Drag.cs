@@ -18,6 +18,13 @@ namespace Gameplay
             if (bounds.size != Vector3.zero && bounds.Contains(new Vector3(pointerWorld.x, pointerWorld.y, transform.position.z)))
             {
                 StartDrag(pointerWorld);
+                // Play move SFX using the shape's theme
+                var mgr = ShapeSpriteManager.Instance != null ? ShapeSpriteManager.Instance : Object.FindFirstObjectByType<ShapeSpriteManager>();
+                var theme = mgr != null ? mgr.GetShapeTheme(gameObject) : null;
+                if (mgr != null)
+                {
+                    mgr.PlayMoveAt(transform.position, theme);
+                }
                 // On drag start switch to original scale if requested
                 preDragScale = transform.localScale;
                 if (scaleToPlacedOnDrag)

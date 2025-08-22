@@ -25,6 +25,8 @@ public class SpriteTheme
     [Header("Audio")]
     public AudioClip placementSound;
     public AudioClip clearSound;
+    [Tooltip("Sound when a shape starts moving from the tray (drag begin).")]
+    public AudioClip moveSound;
 
     [Header("Effects/Animation")]
     [Tooltip("Optional particle/effect prefab to spawn when a tile of this theme is cleared.")]
@@ -38,6 +40,7 @@ public class ShapeSpriteManager : MonoBehaviour
     
     [Header("Default FX/SFX (fallbacks)")]
     [SerializeField] private AudioClip defaultPlacementSound;
+    [SerializeField] private AudioClip defaultMoveSound;
     [SerializeField] private AudioClip defaultClearSound;
     [SerializeField] private GameObject defaultClearEffectPrefab;
 
@@ -45,6 +48,9 @@ public class ShapeSpriteManager : MonoBehaviour
     [Tooltip("Volume for placement sound effects.")]
     [Range(0f,1f)]
     [SerializeField] private float placementSfxVolume = 1f;
+    [Tooltip("Volume for move sound effects (on drag begin).")]
+    [Range(0f,1f)]
+    [SerializeField] private float moveSfxVolume = 1f;
 
     /// <summary>
     /// Placement SFX volume (0..1). Adjust at runtime from UI if needed.
@@ -60,6 +66,20 @@ public class ShapeSpriteManager : MonoBehaviour
     /// </summary>
     public void SetPlacementSfxVolume(float v) => PlacementSfxVolume = v;
 
+    /// <summary>
+    /// Move SFX volume (0..1). Adjust at runtime from UI if needed.
+    /// </summary>
+    public float MoveSfxVolume
+    {
+        get => moveSfxVolume;
+        set => moveSfxVolume = Mathf.Clamp01(value);
+    }
+
+    /// <summary>
+    /// Convenience setter for UI events.
+    /// </summary>
+    public void SetMoveSfxVolume(float v) => MoveSfxVolume = v;
+
     [Header("Spawning Rules")]
     [SerializeField] private bool randomizeThemes = true;
     [SerializeField] private bool allowSameThemeForAllShapes = true;
@@ -68,6 +88,7 @@ public class ShapeSpriteManager : MonoBehaviour
     
     // Singleton-like access
     public static ShapeSpriteManager Instance { get; private set; }
+    private AudioSource _oneShot2D;
     
     // Events
     public System.Action<Shape, SpriteTheme> OnShapeThemeApplied;
@@ -85,6 +106,15 @@ public class ShapeSpriteManager : MonoBehaviour
         }
         
         ValidateThemes();
+        // Prepare 2D one-shot source so tray move SFX don't attenuate with distance
+        _oneShot2D = GetComponent<AudioSource>();
+        if (_oneShot2D == null)
+        {
+            _oneShot2D = gameObject.AddComponent<AudioSource>();
+        }
+        _oneShot2D.playOnAwake = false;
+        _oneShot2D.loop = false;
+        _oneShot2D.spatialBlend = 0f; // 2D playback
     }
     
     private void ValidateThemes()
@@ -437,12 +467,42 @@ public class ShapeSpriteManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Play a short move SFX at position when dragging begins.
+    /// </summary>
+    public void PlayMoveAt(Vector3 worldPosition, SpriteTheme theme)
+    {
+        // Choose clip: theme move > default move > theme placement > default placement
+        AudioClip clip = null;
+        if (theme != null && theme.moveSound != null)
+            clip = theme.moveSound;
+        else if (defaultMoveSound != null)
+            clip = defaultMoveSound;
+        else if (theme != null && theme.placementSound != null)
+            clip = theme.placementSound;
+        else
+            clip = defaultPlacementSound;
+        if (clip != null)
+        {
+            PlaySfx2DRespectingMute(clip, moveSfxVolume);
+        }
+    }
+
     private const string SfxMuteKey = "Audio.SfxMuted";
     private static bool IsSfxMuted() => PlayerPrefs.GetInt(SfxMuteKey, 0) == 1;
     private static void PlaySfxRespectingMute(Vector3 position, AudioClip clip, float volume = 1f)
     {
         if (clip == null || IsSfxMuted()) return;
         AudioSource.PlayClipAtPoint(clip, position, Mathf.Clamp01(volume));
+    }
+
+    private void PlaySfx2DRespectingMute(AudioClip clip, float volume = 1f)
+    {
+        if (clip == null || IsSfxMuted()) return;
+        if (_oneShot2D != null)
+        {
+            _oneShot2D.PlayOneShot(clip, Mathf.Clamp01(volume));
+        }
     }
     
     /// <summary>

@@ -53,6 +53,8 @@ namespace ColorBlast2.Systems.Scoring
         public float comboTimeWindow = 2f;
         public float comboSpritePopScale = 1.5f;
         public float comboSpritePopDuration = 0.4f;
+    [Tooltip("Bonus points when the board is entirely cleared in one cascade.")]
+    public int perfectClearBonus = 1000;
 
     private int score = 0;
     private int highScore = 0;
@@ -175,6 +177,15 @@ namespace ColorBlast2.Systems.Scoring
                     }
                 }
             }
+        }
+
+        // Call when a full-board clear happens
+        public void AddPerfectClearBonus()
+        {
+            if (perfectClearBonus <= 0) return;
+            AddScore(perfectClearBonus);
+            // Optional: immediate combo popup even if no combo active
+            if (enableComboSprite) PopComboSprite();
         }
 
         private void IncrementCombo()
