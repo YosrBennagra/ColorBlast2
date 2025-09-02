@@ -58,12 +58,12 @@ namespace ColorBlast2.Systems.Ads
 
             if (interstitial != null && interstitial.IsLoaded)
             {
-                void OnComplete(string id, UnityEngine.Advertisements.UnityAdsShowCompletionState st)
+                void OnCompleteAdmob(string id, bool done)
                 {
-                    interstitial.OnShowCompleteEvent -= OnComplete;
+                    interstitial.OnShowCompleteEvent -= OnCompleteAdmob;
                     completed?.Invoke();
                 }
-                interstitial.OnShowCompleteEvent += OnComplete;
+                interstitial.OnShowCompleteEvent += OnCompleteAdmob;
                 interstitial.Show();
                 return;
             }

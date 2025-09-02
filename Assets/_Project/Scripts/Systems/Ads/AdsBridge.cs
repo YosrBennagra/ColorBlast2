@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.Advertisements;
 using System.Collections;
 
 /// <summary>
@@ -65,7 +64,7 @@ public class AdsBridge : MonoBehaviour
         // Nothing else needed here, but we can poke it if required.
         if (adsInitializer == null)
         {
-            Debug.LogWarning("[AdsBridge] AdsInitializer not found in scene. Unity Ads may not be initialized.");
+            Debug.LogWarning("[AdsBridge] AdsInitializer not found in scene. Ad SDK may not be initialized.");
         }
     }
 
@@ -86,14 +85,10 @@ public class AdsBridge : MonoBehaviour
     public void ShowInterstitial(Action onCompleted)
     {
         AutoAssign();
-        if (interstitial != null && interstitial.IsLoaded)
+    if (interstitial != null && interstitial.IsLoaded)
         {
-            void Complete(string id, UnityAdsShowCompletionState state)
-            {
-                interstitial.OnShowCompleteEvent -= Complete;
-                onCompleted?.Invoke();
-            }
-            interstitial.OnShowCompleteEvent += Complete;
+        void CompleteAdmob(string id, bool completed) { interstitial.OnShowCompleteEvent -= CompleteAdmob; onCompleted?.Invoke(); }
+        interstitial.OnShowCompleteEvent += CompleteAdmob;
             interstitial.Show();
             return;
         }
@@ -215,15 +210,14 @@ public class AdsBridge : MonoBehaviour
             yield break;
         }
 
-        Action<string, UnityAdsShowCompletionState> handler = null;
-        handler = (adUnitId, state) =>
+#if GOOGLE_MOBILE_ADS
+        void HandlerAdmob(string adUnitId, bool completed)
         {
-            // Unsubscribe to avoid leaks
-            rewarded.OnShowCompleteEvent -= handler;
-            bool success = state == UnityAdsShowCompletionState.COMPLETED;
-            onCompleted?.Invoke(success);
-        };
-        rewarded.OnShowCompleteEvent += handler;
+            rewarded.OnShowCompleteEvent -= HandlerAdmob;
+            onCompleted?.Invoke(completed);
+        }
+        rewarded.OnShowCompleteEvent += HandlerAdmob;
+#endif
         rewarded.Show();
     }
 }

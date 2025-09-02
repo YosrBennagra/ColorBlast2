@@ -1,71 +1,48 @@
 using UnityEngine;
-using UnityEngine.Advertisements;
- 
-public class AdsInitializer : MonoBehaviour, IUnityAdsInitializationListener
+using System.Collections;
+#if GOOGLE_MOBILE_ADS
+using GoogleMobileAds.Api;
+#endif
+
+[DefaultExecutionOrder(-10000)]
+public class AdsInitializer : MonoBehaviour
 {
-  [SerializeField] string androidGameId;
-  [SerializeField] string iOSGameId;
-  [SerializeField] bool testMode = true;
-  private string gameId;
- 
+  public static bool Initialized { get; private set; }
+  [Header("AdMob App IDs (optional; configured via manifest by plugin)")]
+  [SerializeField] string androidAppId;
+
   void Awake()
   {
-    if (Advertisement.isInitialized)
-    {
-      // If Ads already initialized (e.g., from a previous scene), trigger post-init behaviors
-      OnInitializationComplete();
-    }
-    else
-    {
-      SetupAds();
-    }
-  }
- 
-  public void SetupAds()
+  // Initialize AdMob once; safe to call multiple times.
+#if GOOGLE_MOBILE_ADS
+  MobileAds.Initialize(initStatus =>
   {
-    #if UNITY_IOS
-    gameId = iOSGameId;
-    #elif UNITY_ANDROID
-    gameId = androidGameId;
-    #elif UNITY_EDITOR
-    gameId = androidGameId; //Only for testing the functionality in the Editor
-    #endif
- 
-    if (!Advertisement.isInitialized && Advertisement.isSupported)
-     {
-       Advertisement.Initialize(gameId, testMode, this);
-     }
+    Debug.Log("AdMob initialization complete.");
+    Initialized = true;
+    OnInitializedCommon();
+  });
+#else
+  Debug.LogWarning("[AdsInitializer] Google Mobile Ads SDK not found. Install the plugin to enable ads.");
+  // Still call common to let simulation or future logic run
+  Initialized = false;
+  OnInitializedCommon();
+#endif
   }
 
-  public void OnInitializationComplete()
+  private void OnInitializedCommon()
   {
-    Debug.Log("Unity Ads initialization complete.");
-    // Trigger auto-loading of ads after successful initialization
+    // Small delay to ensure Android Activity is fully ready before loading ads
+    StartCoroutine(DelayedAutoLoad());
+  }
+
+  private IEnumerator DelayedAutoLoad()
+  {
+    yield return new WaitForSecondsRealtime(0.5f);
     var interstitial = FindFirstObjectByType<InterstitialAd>();
     if (interstitial != null) interstitial.LoadAd();
-    
     var banner = FindFirstObjectByType<BannerAd>();
     if (banner != null) banner.LoadBanner();
-    
-    // Use reflection to find and load RewardedAd without compilation dependency
-    var rewardedAdType = System.Type.GetType("RewardedAd");
-    if (rewardedAdType != null)
-    {
-      var rewarded = FindFirstObjectByType(rewardedAdType) as MonoBehaviour;
-      if (rewarded != null)
-      {
-        var loadMethod = rewardedAdType.GetMethod("LoadAd");
-        if (loadMethod != null)
-        {
-          loadMethod.Invoke(rewarded, null);
-          Debug.Log("Auto-loading RewardedAd after initialization");
-        }
-      }
-    }
-  }
- 
-  public void OnInitializationFailed(UnityAdsInitializationError error, string message)
-  {
-    Debug.Log($"Unity Ads Initialization Failed: {error.ToString()} - {message}");
+    var rewarded = FindFirstObjectByType<RewardedAd>();
+    if (rewarded != null) rewarded.LoadAd();
   }
 }

@@ -1,26 +1,34 @@
 using UnityEngine;
-using UnityEngine.Advertisements;
 using System;
+#if GOOGLE_MOBILE_ADS
+using GoogleMobileAds.Api;
+#endif
  
-public class InterstitialAd : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowListener
+public class InterstitialAd : MonoBehaviour
 {
-  [SerializeField] string _androidAdUnitId = "Interstitial_Android";
-  [SerializeField] string _iOSAdUnitId = "Interstitial_iOS";
+  [SerializeField] string _androidAdUnitId = "ca-app-pub-9594729661204695/5639203748";
   string _adUnitId;
   public bool IsLoaded { get; private set; }
   public event Action<string> OnLoaded;
-  public event Action<string, UnityAdsLoadError, string> OnFailedToLoad;
-  public event Action<string, UnityAdsShowError, string> OnShowFailure;
+#if GOOGLE_MOBILE_ADS
+  public event Action<string, LoadAdError, string> OnFailedToLoad;
+  public event Action<string, AdError, string> OnShowFailure;
+#endif
   public event Action<string> OnShowStartEvent;
   public event Action<string> OnShowClickEvent;
-  public event Action<string, UnityAdsShowCompletionState> OnShowCompleteEvent;
+#if GOOGLE_MOBILE_ADS
+  public event Action<string, AdValue> OnPaidEvent;
+#endif
+  public event Action<string, bool> OnShowCompleteEvent; // bool: completed
+  
+#if GOOGLE_MOBILE_ADS
+  private GoogleMobileAds.Api.InterstitialAd _interstitial;
+#endif
  
   void Awake()
   {
-    // Get the Ad Unit ID for the current platform:
-    _adUnitId = (Application.platform == RuntimePlatform.IPhonePlayer)
-    ? _iOSAdUnitId
-    : _androidAdUnitId;
+  // Android only
+  _adUnitId = _androidAdUnitId;
   }
  
   // Load content to the Ad Unit:
@@ -28,7 +36,42 @@ public class InterstitialAd : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsSho
   {
     // IMPORTANT! Only load content AFTER initialization (in this example, initialization is handled in a different script).
     Debug.Log("Loading Ad: " + _adUnitId);
-    Advertisement.Load(_adUnitId, this);
+    if (!AdsInitializer.Initialized)
+    {
+      Debug.LogWarning("[InterstitialAd] Mobile Ads not initialized yet. Delaying load by 1s.");
+      CancelInvoke(nameof(LoadAd));
+      Invoke(nameof(LoadAd), 1f);
+      return;
+    }
+#if GOOGLE_MOBILE_ADS
+      // Clean up existing instance
+      if (_interstitial != null) { _interstitial.Destroy(); _interstitial = null; }
+    var request = new AdRequest();
+      GoogleMobileAds.Api.InterstitialAd.Load(_adUnitId, request, (GoogleMobileAds.Api.InterstitialAd ad, LoadAdError err) =>
+      {
+        if (err != null || ad == null)
+        {
+          var msg = err != null ? err.GetMessage() : "null ad returned";
+          Debug.Log($"Error loading Ad Unit: {_adUnitId} - {msg}");
+          IsLoaded = false;
+          OnFailedToLoad?.Invoke(_adUnitId, err, msg);
+          Invoke(nameof(LoadAd), 5f);
+          return;
+        }
+        _interstitial = ad;
+        // Wire events
+        _interstitial.OnAdFullScreenContentOpened += () => { OnShowStartEvent?.Invoke(_adUnitId); };
+        _interstitial.OnAdFullScreenContentClosed += () => { IsLoaded = false; OnShowCompleteEvent?.Invoke(_adUnitId, true); RequestLoad(); };
+        _interstitial.OnAdClicked += () => { OnShowClickEvent?.Invoke(_adUnitId); };
+        _interstitial.OnAdImpressionRecorded += () => { /* optional */ };
+        _interstitial.OnAdFullScreenContentFailed += (AdError error) => { OnShowFailure?.Invoke(_adUnitId, error, error.GetMessage()); };
+        _interstitial.OnAdPaid += (AdValue val) => { OnPaidEvent?.Invoke(_adUnitId, val); };
+        IsLoaded = true; OnLoaded?.Invoke(_adUnitId);
+      });
+#else
+  Debug.LogWarning("[InterstitialAd] Google Mobile Ads SDK not found. Install the plugin to enable interstitials.");
+  IsLoaded = false;
+#endif
   }
 
   // Aliases for external systems
@@ -39,41 +82,19 @@ public class InterstitialAd : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsSho
   {
     // Note that if the ad content wasn't previously loaded, this method will fail
     Debug.Log("Showing Ad: " + _adUnitId);
-    Advertisement.Show(_adUnitId, this);
+#if GOOGLE_MOBILE_ADS
+    if (_interstitial != null && _interstitial.CanShowAd())
+    {
+      _interstitial.Show();
+    }
+    else
+    {
+      Debug.LogWarning("Interstitial not ready");
+    }
+#else
+  Debug.LogWarning("[InterstitialAd] Google Mobile Ads SDK not found; cannot show interstitial.");
+#endif
   }
   public void Show() => ShowAd();
  
-  // Implement Load Listener and Show Listener interface methods: 
-  public void OnUnityAdsAdLoaded(string adUnitId)
-  {
-    Debug.Log($"Interstitial Ad loaded: {adUnitId}");
-    IsLoaded = true;
-    OnLoaded?.Invoke(adUnitId);
-  }
- 
-  public void OnUnityAdsFailedToLoad(string _adUnitId, UnityAdsLoadError error, string message)
-  {
-    Debug.Log($"Error loading Ad Unit: {_adUnitId} - {error.ToString()} - {message}");
-    IsLoaded = false;
-    OnFailedToLoad?.Invoke(_adUnitId, error, message);
-    // Retry after 5 seconds
-    Invoke(nameof(LoadAd), 5f);
-  }
- 
-  public void OnUnityAdsShowFailure(string _adUnitId, UnityAdsShowError error, string message)
-  {
-    Debug.Log($"Error showing Ad Unit {_adUnitId}: {error.ToString()} - {message}");
-    OnShowFailure?.Invoke(_adUnitId, error, message);
-  }
- 
-  public void OnUnityAdsShowStart(string _adUnitId) { OnShowStartEvent?.Invoke(_adUnitId); }
-  public void OnUnityAdsShowClick(string _adUnitId) { OnShowClickEvent?.Invoke(_adUnitId); }
-  public void OnUnityAdsShowComplete(string _adUnitId, UnityAdsShowCompletionState showCompletionState)
-  {
-    Debug.Log($"Interstitial Ad show complete: {_adUnitId}, state: {showCompletionState}");
-    IsLoaded = false; // consume load
-    OnShowCompleteEvent?.Invoke(_adUnitId, showCompletionState);
-    // Auto-reload for next time
-    LoadAd();
-  }
 }

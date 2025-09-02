@@ -1,26 +1,42 @@
 using UnityEngine;
-using UnityEngine.Advertisements;
 using System;
+#if GOOGLE_MOBILE_ADS
+using GoogleMobileAds.Api;
+#endif
  
-public class RewardedAd : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowListener
+public class RewardedAd : MonoBehaviour
 {
-  [SerializeField] string _androidAdUnitId = "Rewarded_Android";
-  [SerializeField] string _iOSAdUnitId = "Rewarded_iOS";
+  private const string ANDROID_TEST_REWARDED_ID = "ca-app-pub-3940256099942544/5224354917"; // Google test ID
+  [SerializeField] string _androidAdUnitId = "ca-app-pub-9594729661204695/7016968243";
   string _adUnitId;
   public bool IsLoaded { get; private set; }
   public event Action<string> OnLoaded;
-  public event Action<string, UnityAdsLoadError, string> OnFailedToLoad;
-  public event Action<string, UnityAdsShowError, string> OnShowFailure;
+#if GOOGLE_MOBILE_ADS
+  public event Action<string, LoadAdError, string> OnFailedToLoad;
+  public event Action<string, AdError, string> OnShowFailure;
+#endif
   public event Action<string> OnShowStartEvent;
   public event Action<string> OnShowClickEvent;
-  public event Action<string, UnityAdsShowCompletionState> OnShowCompleteEvent;
+  public event Action<string, bool> OnShowCompleteEvent; // bool: rewarded success
+
+#if GOOGLE_MOBILE_ADS
+  private GoogleMobileAds.Api.RewardedAd _rewarded;
+  private bool _earnedReward;
+#endif
  
   void Awake()
   {
-    // Get the Ad Unit ID for the current platform:
-    _adUnitId = (Application.platform == RuntimePlatform.IPhonePlayer)
-    ? _iOSAdUnitId
-    : _androidAdUnitId;
+  // Android only - validate and trim
+  var id = (_androidAdUnitId ?? string.Empty).Trim();
+  if (string.IsNullOrEmpty(id) || !id.StartsWith("ca-app-pub-") || !id.Contains("/"))
+  {
+    Debug.LogWarning("[RewardedAd] Invalid or empty Android Ad Unit ID. Using AdMob test rewarded ID.");
+    _adUnitId = ANDROID_TEST_REWARDED_ID;
+  }
+  else
+  {
+    _adUnitId = id;
+  }
   }
  
   // Load content to the Ad Unit:
@@ -28,7 +44,36 @@ public class RewardedAd : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowLis
   {
     // IMPORTANT! Only load content AFTER initialization (in this example, initialization is handled in a different script).
     Debug.Log("Loading Rewarded Ad: " + _adUnitId);
-    Advertisement.Load(_adUnitId, this);
+    if (!AdsInitializer.Initialized)
+    {
+      Debug.LogWarning("[RewardedAd] Mobile Ads not initialized yet. Delaying load by 1s.");
+      CancelInvoke(nameof(LoadAd));
+      Invoke(nameof(LoadAd), 1f);
+      return;
+    }
+#if GOOGLE_MOBILE_ADS
+    // Clean existing
+    if (_rewarded != null) { _rewarded.Destroy(); _rewarded = null; }
+  var request = new AdRequest();
+    GoogleMobileAds.Api.RewardedAd.Load(_adUnitId, request, (GoogleMobileAds.Api.RewardedAd ad, LoadAdError err) =>
+    {
+      if (err != null || ad == null)
+      {
+    var msg = err != null ? err.GetMessage() : "null ad returned";
+    Debug.Log($"Error loading Rewarded Ad Unit: {_adUnitId} - {msg}");
+        IsLoaded = false;
+        OnFailedToLoad?.Invoke(_adUnitId, err, msg);
+        Invoke(nameof(LoadAd), 5f);
+        return;
+      }
+      _rewarded = ad;
+      WireRewardedCallbacks();
+      IsLoaded = true; OnLoaded?.Invoke(_adUnitId);
+    });
+#else
+  Debug.LogWarning("[RewardedAd] Google Mobile Ads SDK not found. Install the plugin to enable rewarded ads.");
+  IsLoaded = false;
+#endif
   }
 
   // Aliases for external systems
@@ -39,41 +84,35 @@ public class RewardedAd : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowLis
   {
     // Note that if the ad content wasn't previously loaded, this method will fail
     Debug.Log("Showing Rewarded Ad: " + _adUnitId);
-    Advertisement.Show(_adUnitId, this);
+#if GOOGLE_MOBILE_ADS
+    if (_rewarded != null && _rewarded.CanShowAd())
+    {
+      _earnedReward = false;
+      _rewarded.Show((Reward reward) => { _earnedReward = true; });
+    }
+    else
+    {
+      Debug.LogWarning("Rewarded not ready");
+    }
+#else
+  Debug.LogWarning("[RewardedAd] Google Mobile Ads SDK not found; cannot show rewarded ad.");
+#endif
   }
   public void Show() => ShowAd();
  
-  // Implement Load Listener and Show Listener interface methods: 
-  public void OnUnityAdsAdLoaded(string adUnitId)
+#if GOOGLE_MOBILE_ADS
+  private void WireRewardedCallbacks()
   {
-    Debug.Log($"Rewarded Ad loaded: {adUnitId}");
-    IsLoaded = true;
-    OnLoaded?.Invoke(adUnitId);
+    if (_rewarded == null) return;
+    _rewarded.OnAdFullScreenContentOpened += () => { OnShowStartEvent?.Invoke(_adUnitId); };
+    _rewarded.OnAdFullScreenContentClosed += () =>
+    {
+      IsLoaded = false;
+      OnShowCompleteEvent?.Invoke(_adUnitId, _earnedReward);
+      LoadAd(); // auto reload
+    };
+    _rewarded.OnAdFullScreenContentFailed += (AdError err) => { OnShowFailure?.Invoke(_adUnitId, err, err.GetMessage()); };
+    _rewarded.OnAdClicked += () => { OnShowClickEvent?.Invoke(_adUnitId); };
   }
- 
-  public void OnUnityAdsFailedToLoad(string _adUnitId, UnityAdsLoadError error, string message)
-  {
-    Debug.Log($"Error loading Rewarded Ad Unit: {_adUnitId} - {error.ToString()} - {message}");
-    IsLoaded = false;
-    OnFailedToLoad?.Invoke(_adUnitId, error, message);
-    // Retry after 5 seconds
-    Invoke(nameof(LoadAd), 5f);
-  }
- 
-  public void OnUnityAdsShowFailure(string _adUnitId, UnityAdsShowError error, string message)
-  {
-    Debug.Log($"Error showing Rewarded Ad Unit {_adUnitId}: {error.ToString()} - {message}");
-    OnShowFailure?.Invoke(_adUnitId, error, message);
-  }
- 
-  public void OnUnityAdsShowStart(string _adUnitId) { OnShowStartEvent?.Invoke(_adUnitId); }
-  public void OnUnityAdsShowClick(string _adUnitId) { OnShowClickEvent?.Invoke(_adUnitId); }
-  public void OnUnityAdsShowComplete(string _adUnitId, UnityAdsShowCompletionState showCompletionState)
-  {
-    Debug.Log($"Rewarded Ad show complete: {_adUnitId}, state: {showCompletionState}");
-    IsLoaded = false; // consume load
-    OnShowCompleteEvent?.Invoke(_adUnitId, showCompletionState);
-    // Auto-reload for next time
-    LoadAd();
-  }
+#endif
 }

@@ -726,7 +726,7 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Android: DOTWEEN;LEVELPLAY_DEPENDENCIES_INSTALLED
+    Android: DOTWEEN;LEVELPLAY_DEPENDENCIES_INSTALLED;GOOGLE_MOBILE_ADS
     EmbeddedLinux: DOTWEEN
     GameCoreScarlett: DOTWEEN
     GameCoreXboxOne: DOTWEEN
