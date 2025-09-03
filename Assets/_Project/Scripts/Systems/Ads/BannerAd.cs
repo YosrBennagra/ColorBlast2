@@ -1,7 +1,5 @@
 using UnityEngine;
-using UnityEngine.UI;
 using System;
-using System.Collections;
 #if GOOGLE_MOBILE_ADS
 using GoogleMobileAds.Api;
 #endif
@@ -10,72 +8,62 @@ using GoogleMobileAds.Api;
 [AddComponentMenu("Ads/Banner Ad")]
 public class BannerAd : MonoBehaviour
 {
+  // Simple AdMob banner loader for Android
   private const string ANDROID_TEST_BANNER_ID = "ca-app-pub-3940256099942544/6300978111"; // Google test ID
-  // For the purpose of this example, these buttons are for functionality testing:
-  [SerializeField] Button _loadBannerButton;
-  [SerializeField] Button _showBannerButton;
-  [SerializeField] Button _hideBannerButton;
+  // This component is scene-local; banner shows only in allowed scenes.
 
   #if GOOGLE_MOBILE_ADS
   [SerializeField] AdPosition _admobPosition = AdPosition.Bottom;
   #endif
 
-  [Header("Ad Unit IDs")]
-  [SerializeField] string _androidAdUnitId = "ca-app-pub-9594729661204695/4354026328"; // Unity Ads or AdMob ID based on provider
+  [Header("Ad Unit ID")]
+  [SerializeField] private string bannerId = "ca-app-pub-9594729661204695/4354026328"; // paste EXACTLY
+  [SerializeField] private bool useTestBannerId = false; // set true to force Google test banner
   string _adUnitId = null; // This will remain null for unsupported platforms.
+  [Header("Scene Restriction")]
+  [SerializeField] private string allowedSceneName = "CoreGame";
+  
   public bool IsLoaded { get; private set; }
   public bool IsShowing { get; private set; }
-  public event Action OnLoaded;
-  public event Action<string> OnError;
-  public event Action OnShown;
-  public event Action OnHidden;
 
 #if GOOGLE_MOBILE_ADS
   private BannerView _bannerView;
+  private bool _creating;
 #endif
 
   void Awake()
   {
-    // Resolve Ad Unit ID as early as possible (Awake), so external callers can load immediately.
-    _adUnitId = _androidAdUnitId;
+  // Resolve Ad Unit ID as early as possible (Awake), so external callers can load immediately.
+  _adUnitId = (bannerId ?? string.Empty).Trim();
+#if DEVELOPMENT_BUILD
+  // In Development builds, force the Google test banner to validate SDK path on device
+  useTestBannerId = true;
+#endif
+  if (useTestBannerId) { _adUnitId = ANDROID_TEST_BANNER_ID; Debug.Log("[Ads] Forcing TEST banner ID in this build."); }
     if (string.IsNullOrEmpty(_adUnitId))
     {
-      _adUnitId = ANDROID_TEST_BANNER_ID;
-      Debug.LogWarning("[BannerAd] Android Banner Ad Unit ID not set. Using AdMob test ID.");
+      Debug.LogError("[BannerAd] Android Banner Ad Unit ID is empty.");
+    }
+    else
+    {
+      Debug.Log($"[Ads] Using banner ID: {_adUnitId}");
     }
   }
 
   void Start()
   {
-    // No-op here for ID assignment; done in Awake.
-
-  // Disable the buttons (if assigned) until an ad is ready to show:
-  if (_showBannerButton != null) _showBannerButton.interactable = false;
-  if (_hideBannerButton != null) _hideBannerButton.interactable = false;
-
-  // Configure the Load Banner button to call the LoadBanner() method when clicked:
-  if (_loadBannerButton != null)
-  {
-      _loadBannerButton.onClick.AddListener(LoadBanner);
-      _loadBannerButton.interactable = true;
-  }
-        
-  // Auto-load banner
+    // Auto-load banner
   LoadBanner();
-
-    if (Application.isEditor)
-    {
-      Debug.Log("[BannerAd] Running in Editor. Banner ads may not render in the Editor. Test on a device.");
-    }
   }
  
   // Implement a method to call when the Load Banner button is clicked:
     public void LoadBanner()
   {
-    if (string.IsNullOrEmpty(_adUnitId))
+#if GOOGLE_MOBILE_ADS
+    if (!IsAllowedScene())
     {
-      Debug.LogWarning("Banner Ad Unit ID is not set for current platform. Falling back to AdMob test ID.");
-      _adUnitId = ANDROID_TEST_BANNER_ID;
+      Debug.Log("[BannerAd] Current scene is not allowed for banner (" + UnityEngine.SceneManagement.SceneManager.GetActiveScene().name + "). Skipping load.");
+      return;
     }
     if (!AdsInitializer.Initialized)
     {
@@ -84,63 +72,78 @@ public class BannerAd : MonoBehaviour
       Invoke(nameof(LoadBanner), 1f);
       return;
     }
-      
-  Debug.Log($"Loading Banner Ad: {_adUnitId}");
-#if GOOGLE_MOBILE_ADS
-  // Clean up old view if exists
-  if (_bannerView != null)
-  {
-    _bannerView.Destroy();
-    _bannerView = null;
-  }
-  // Create a new banner view with adaptive size for better device compatibility
-  var adaptiveSize = AdSize.GetCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(AdSize.FullWidth);
-  _bannerView = new BannerView(_adUnitId, adaptiveSize, _admobPosition);
-  // Attach events
-  _bannerView.OnBannerAdLoaded += () => { IsLoaded = true; OnLoaded?.Invoke(); ShowBannerAd(); };
-  _bannerView.OnBannerAdLoadFailed += (LoadAdError error) => { IsLoaded = false; OnError?.Invoke(error.GetMessage()); Invoke(nameof(LoadBanner), 10f); };
-  _bannerView.OnAdFullScreenContentClosed += () => { IsShowing = false; OnHidden?.Invoke(); };
-  _bannerView.OnAdFullScreenContentOpened += () => { IsShowing = true; OnShown?.Invoke(); };
-  // Load request
-  var request = new AdRequest();
-  _bannerView.LoadAd(request);
+    CreateAndLoadBanner();
 #else
-  // AdMob SDK not present
-  Debug.LogWarning("[BannerAd] Google Mobile Ads SDK not found. Install the plugin to enable banners.");
-  IsLoaded = false;
+    // AdMob SDK not present
+    Debug.LogWarning("[BannerAd] Google Mobile Ads SDK not found. Install the plugin to enable banners.");
+    IsLoaded = false;
 #endif
   }
 
-  // Implement code to execute when the loadCallback event triggers:
-  void OnBannerLoaded()
+#if GOOGLE_MOBILE_ADS
+  private void CreateAndLoadBanner()
   {
-            Debug.Log("Banner loaded");
-            IsLoaded = true;
-            OnLoaded?.Invoke();
+    // If already created in this scene, reuse instance
+    if (_bannerView != null)
+    {
+      if (IsLoaded)
+      {
+        Debug.Log("[BannerAd] Banner already loaded, showing.");
+        ShowBannerAd();
+      }
+      else
+      {
+        Debug.Log("[BannerAd] BannerView exists, reloading request.");
+        var req = new AdRequest();
+        _bannerView.LoadAd(req);
+      }
+      return;
+    }
+    if (string.IsNullOrWhiteSpace(_adUnitId))
+    {
+      Debug.LogError("[Ads] Banner ID is empty!");
+      return;
+    }
+    if (_creating)
+    {
+      Debug.Log("[BannerAd] Banner creation already in progress; skipping duplicate call.");
+      return;
+    }
+    _adUnitId = _adUnitId.Trim();
+    Debug.Log("[Ads] Using banner ID: " + _adUnitId);
 
-            if (_showBannerButton != null) _showBannerButton.onClick.AddListener(ShowBannerAd);
-            if (_hideBannerButton != null) _hideBannerButton.onClick.AddListener(HideBannerAd);
+  // Create new 320x50 banner using configured position
+  _creating = true;
+    _bannerView = new BannerView(_adUnitId, AdSize.Banner, _admobPosition);
 
-            if (_showBannerButton != null) _showBannerButton.interactable = true;
-            if (_hideBannerButton != null) _hideBannerButton.interactable = true;
-            
-            // Auto-show banner after loading
-            ShowBannerAd();
+    _bannerView.OnBannerAdLoaded += () => { IsLoaded = true; _creating = false; ShowBannerAd(); };
+    _bannerView.OnBannerAdLoadFailed += (LoadAdError error) =>
+    {
+      IsLoaded = false; _creating = false;
+      Debug.LogWarning("[BannerAd] Load failed for " + _adUnitId + ": " + error?.GetMessage());
+      CancelInvoke(nameof(LoadBanner));
+      Invoke(nameof(LoadBanner), 15f);
+    };
+    _bannerView.OnAdFullScreenContentClosed += () => { IsShowing = false; };
+    _bannerView.OnAdFullScreenContentOpened += () => { IsShowing = true; };
+
+    var request = new AdRequest();
+    _bannerView.LoadAd(request);
   }
-
-  // Implement code to execute when the load errorCallback event triggers:
-  void OnBannerError(string message)
-  {
-            Debug.Log($"Banner Error: {message}");
-            IsLoaded = false;
-            OnError?.Invoke(message);
-            // Retry after 10 seconds
-            Invoke(nameof(LoadBanner), 10f);
-  }
+#endif
 
   // Implement a method to call when the Show Banner button is clicked:
     public void ShowBannerAd()
   {
+    if (!IsAllowedScene())
+    {
+      Debug.Log("[BannerAd] Current scene is not allowed; hiding banner if visible.");
+#if GOOGLE_MOBILE_ADS
+      if (_bannerView != null) _bannerView.Hide();
+#endif
+      IsShowing = false;
+      return;
+    }
       if (!IsLoaded)
       {
           Debug.LogWarning("Banner not loaded yet, loading first...");
@@ -173,22 +176,34 @@ public class BannerAd : MonoBehaviour
       IsShowing = false;
   }
 
-    void OnBannerClicked() { }
-    void OnBannerShown() { IsShowing = true; OnShown?.Invoke(); }
-    void OnBannerHidden() { IsShowing = false; OnHidden?.Invoke(); }
+  void OnBannerClicked() { }
 
   void OnDestroy()
   {
-      // Clean up the listeners:
-    if (_loadBannerButton != null) _loadBannerButton.onClick.RemoveAllListeners();
-    if (_showBannerButton != null) _showBannerButton.onClick.RemoveAllListeners();
-    if (_hideBannerButton != null) _hideBannerButton.onClick.RemoveAllListeners();
+#if GOOGLE_MOBILE_ADS
+  // Destroy the instance banner view when leaving the scene
+  if (_bannerView != null)
+  {
+    try { _bannerView.Destroy(); } catch { }
+    _bannerView = null;
+  }
+#endif
+  }
 
+  private bool IsAllowedScene()
+  {
+    var active = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+    return string.Equals(active, allowedSceneName, StringComparison.Ordinal);
+  }
+
+  private void OnApplicationQuit()
+  {
 #if GOOGLE_MOBILE_ADS
     if (_bannerView != null)
     {
-      _bannerView.Destroy();
+      try { _bannerView.Destroy(); } catch { }
       _bannerView = null;
+      _creating = false;
     }
 #endif
   }

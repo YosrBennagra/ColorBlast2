@@ -3581,9 +3581,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efd92cf1d4e328c4dabf35bd2976ff98, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _loadBannerButton: {fileID: 0}
-  _showBannerButton: {fileID: 0}
-  _hideBannerButton: {fileID: 0}
   _admobPosition: 1
   _androidAdUnitId: Banner_Android
 --- !u!213 &1038979157
@@ -11967,9 +11964,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efd92cf1d4e328c4dabf35bd2976ff98, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _loadBannerButton: {fileID: 0}
-  _showBannerButton: {fileID: 0}
-  _hideBannerButton: {fileID: 0}
   _admobPosition: 1
   _androidAdUnitId: ca-app-pub-9594729661204695/4354026328
 --- !u!1 &1466692114

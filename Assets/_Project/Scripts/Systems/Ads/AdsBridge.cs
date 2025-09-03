@@ -49,8 +49,8 @@ public class AdsBridge : MonoBehaviour
             banner = FindFirstObjectByType<BannerAd>();
             if (banner == null)
             {
+                // Create a lightweight BannerAd host for this scene only. Do NOT persist it.
                 var go = new GameObject("_BannerAd");
-                if (keepAcrossScenes) DontDestroyOnLoad(go);
                 banner = go.AddComponent<BannerAd>();
             }
         }
@@ -131,8 +131,16 @@ public class AdsBridge : MonoBehaviour
     {
         AutoAssign();
         if (banner == null) { Debug.LogWarning("[AdsBridge] BannerAd not found."); return; }
-        if (!banner.IsLoaded) banner.LoadBanner();
-        banner.ShowBannerAd();
+        var active = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (string.Equals(active, "CoreGame", StringComparison.Ordinal))
+        {
+            if (!banner.IsLoaded) banner.LoadBanner();
+            banner.ShowBannerAd();
+        }
+        else
+        {
+            banner.HideBannerAd();
+        }
     }
 
     public bool IsBannerShowing()
@@ -151,7 +159,15 @@ public class AdsBridge : MonoBehaviour
     private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
     {
         if (!alwaysShowBanner) return;
-        ShowBanner();
+    ShowBanner();
+    }
+
+    private void OnDestroy()
+    {
+        if (alwaysShowBanner)
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
     }
 
     // ---------------- Rewarded ----------------
