@@ -95,9 +95,16 @@ public partial class ShapeSpawner
     public bool HasAnyValidMove()
     {
         if (!Application.isPlaying) return true;
+        // Throttle to at most ~10 checks/sec
+        const float interval = 0.1f;
+        if (Time.time - lastValidMoveCheckTime < interval)
+            return lastHasAnyValidMove;
+
         var gm = GetGridManager();
-        if (gm == null) return true;
+        if (gm == null) { lastHasAnyValidMove = true; lastValidMoveCheckTime = Time.time; return true; }
+
         bool foundUnplaced = false;
+        var snap = BoardScoring.CreateSnapshot(gm);
         for (int i = 0; i < currentShapes.Length; i++)
         {
             var go = currentShapes[i];
@@ -106,12 +113,14 @@ public partial class ShapeSpawner
             if (s == null || s.IsPlaced) continue;
             foundUnplaced = true;
             var offs = s.ShapeOffsets; if (offs == null || offs.Count == 0) continue;
-            for (int x = 0; x < gm.GridWidth; x++)
-                for (int y = 0; y < gm.GridHeight; y++)
-                    if (gm.CanPlaceShape(new Vector2Int(x, y), offs)) return true;
+            bool hasValid;
+            // fast probe: if best score is finite (i.e., there exists a valid placement), we're good
+            var score = BoardScoring.EvaluateBestPlacementScore(snap, offs, out hasValid);
+            if (hasValid) { lastHasAnyValidMove = true; lastValidMoveCheckTime = Time.time; return true; }
         }
-        if (!foundUnplaced) return true;
-        return false;
+        lastHasAnyValidMove = !foundUnplaced || false;
+        lastValidMoveCheckTime = Time.time;
+        return lastHasAnyValidMove;
     }
 
     public void DestroyUnplacedTrayShapes()

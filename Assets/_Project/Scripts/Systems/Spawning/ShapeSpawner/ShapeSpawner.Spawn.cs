@@ -66,12 +66,28 @@ public partial class ShapeSpawner
                 while (recentIndices.Count > noRepeatWindow) recentIndices.Dequeue();
             }
         }
-    ApplyThemesToShapes(newly.ToArray());
-    // restore perfect-clear chance for subsequent spawns
-    perfectClearChance = originalPCChance;
+        ApplyThemesToShapes(newly.ToArray());
+        // After spawn, if no valid moves at all, optionally reroll immediately (once or limited times)
+        // Force a fresh valid-move evaluation by resetting the throttle
+        lastValidMoveCheckTime = -999f;
+        if (guaranteeMoveOnSpawn && !HasAnyValidMove() && immediateSpawnRerollAttempts < Mathf.Max(0, maxImmediateRerollAttempts))
+        {
+            immediateSpawnRerollAttempts++;
+            DestroyUnplacedTrayShapes();
+            // restore perfect-clear chance before rerolling
+            perfectClearChance = originalPCChance;
+            // Avoid incrementing setsSpawnedCount; try again
+            SpawnNewShapes();
+            return;
+        }
+
+        // Success path: reset attempts and finalize bookkeeping
+        immediateSpawnRerollAttempts = 0;
+        // restore perfect-clear chance for subsequent spawns
+        perfectClearChance = originalPCChance;
         lastSpawnTime = Time.time;
-    setsSpawnedCount++;
-    lastPerfectClearSlot = -1; lastPerfectClearIndex = -1;
+        setsSpawnedCount++;
+        lastPerfectClearSlot = -1; lastPerfectClearIndex = -1;
     }
 
     private int[] DetermineRandomAdaptiveIndices()
@@ -89,21 +105,12 @@ public partial class ShapeSpawner
     {
         if (shapePrefabs == null || shapePrefabs.Length == 0) return 0;
         int selectedIndex = -1;
-        var selectorType = System.Type.GetType("AdaptiveShapeSelector");
-        if (selectorType != null)
+        try
         {
-            var method = selectorType.GetMethod("SelectPrefab", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-            if (method != null)
-            {
-                try
-                {
-                    float level = assistLevel;
-                    var prefab = (GameObject)method.Invoke(null, new object[] { shapePrefabs, level });
-                    if (prefab != null) selectedIndex = System.Array.IndexOf(shapePrefabs, prefab);
-                }
-                catch { }
-            }
+            var prefab = AdaptiveShapeSelector.SelectPrefab(shapePrefabs, assistLevel);
+            if (prefab != null) selectedIndex = System.Array.IndexOf(shapePrefabs, prefab);
         }
+        catch { }
         if (selectedIndex < 0) selectedIndex = Random.Range(0, shapePrefabs.Length);
         return selectedIndex;
     }

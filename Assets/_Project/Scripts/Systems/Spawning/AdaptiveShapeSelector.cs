@@ -23,6 +23,9 @@ public static class AdaptiveShapeSelector
             return candidates[Random.Range(0, candidates.Length)];
         }
 
+        // Build a snapshot once to reuse across all evaluations
+        var snap = BoardScoring.CreateSnapshot(gm);
+
         // Build scoring for all candidates
         float bestScore = float.NegativeInfinity;
         GameObject bestPrefab = null;
@@ -32,8 +35,8 @@ public static class AdaptiveShapeSelector
             var offsets = GetOffsets(prefab);
             if (offsets == null || offsets.Count == 0) continue;
 
-            bool hasValid = false;
-            float prefabBest = EvaluateBestPlacementScore(gm, offsets, ref hasValid);
+            bool hasValid;
+            float prefabBest = BoardScoring.EvaluateBestPlacementScore(snap, offsets, out hasValid);
             if (hasValid)
             {
                 validPrefabs.Add(prefab);
@@ -103,91 +106,5 @@ public static class AdaptiveShapeSelector
         return best ?? (candidates.Length > 0 ? candidates[0] : null);
     }
 
-    // Evaluate the best achievable score for given shape offsets across the board
-    private static float EvaluateBestPlacementScore(GridManager gm, List<Vector2Int> offsets, ref bool hasValid)
-    {
-        hasValid = false;
-        float best = float.NegativeInfinity;
-        int W = gm.GridWidth;
-        int H = gm.GridHeight;
-        var occupied = gm.GetOccupiedPositions();
-
-        for (int x = 0; x < W; x++)
-        {
-            for (int y = 0; y < H; y++)
-            {
-                var start = new Vector2Int(x, y);
-                if (!gm.CanPlaceShape(start, offsets)) continue;
-                hasValid = true;
-                float s = ScorePlacement(gm, occupied, offsets, start);
-                if (s > best) best = s;
-            }
-        }
-        return best;
-    }
-
-    private static float ScorePlacement(GridManager gm, HashSet<Vector2Int> occupied, List<Vector2Int> offsets, Vector2Int start)
-    {
-        int W = gm.GridWidth;
-        int H = gm.GridHeight;
-
-        // Simulate occupancy
-        var sim = new HashSet<Vector2Int>(occupied);
-        var placed = new List<Vector2Int>(offsets.Count);
-        foreach (var o in offsets)
-        {
-            var p = start + o;
-            sim.Add(p);
-            placed.Add(p);
-        }
-
-        // Heuristics
-        int linesCompleted = 0;
-        // count full rows
-        for (int y = 0; y < H; y++)
-        {
-            bool full = true;
-            for (int x = 0; x < W; x++)
-            {
-                if (!sim.Contains(new Vector2Int(x, y))) { full = false; break; }
-            }
-            if (full) linesCompleted++;
-        }
-        // count full columns (optional, smaller weight)
-        int colsCompleted = 0;
-        for (int x = 0; x < W; x++)
-        {
-            bool full = true;
-            for (int y = 0; y < H; y++)
-            {
-                if (!sim.Contains(new Vector2Int(x, y))) { full = false; break; }
-            }
-            if (full) colsCompleted++;
-        }
-
-        // Adjacency to existing blocks (touching existing helps reduce holes)
-        int adjacency = 0;
-        foreach (var p in placed)
-        {
-            if (occupied.Contains(new Vector2Int(p.x + 1, p.y))) adjacency++;
-            if (occupied.Contains(new Vector2Int(p.x - 1, p.y))) adjacency++;
-            if (occupied.Contains(new Vector2Int(p.x, p.y + 1))) adjacency++;
-            if (occupied.Contains(new Vector2Int(p.x, p.y - 1))) adjacency++;
-        }
-
-        // Centrality (closer to center is slightly better)
-        Vector2 center = new Vector2((W - 1) * 0.5f, (H - 1) * 0.5f);
-        float avgDist = 0f;
-        foreach (var p in placed)
-        {
-            avgDist += Vector2.Distance(center, new Vector2(p.x, p.y));
-        }
-        avgDist /= Mathf.Max(1, placed.Count);
-        float maxDist = Vector2.Distance(Vector2.zero, new Vector2(center.x, center.y));
-        float centrality = (maxDist - avgDist); // higher is better
-
-        // Final score (tunable weights)
-        float score = 100f * linesCompleted + 40f * colsCompleted + 3f * adjacency + 0.5f * centrality;
-        return score;
-    }
+    // Scoring moved to BoardScoring
 }

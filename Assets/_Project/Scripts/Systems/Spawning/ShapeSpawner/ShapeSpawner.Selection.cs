@@ -155,15 +155,27 @@ public partial class ShapeSpawner
         if (gm == null || shapePrefabs == null || prefabIndex < 0 || prefabIndex >= shapePrefabs.Length) return false;
         var offs = GetOffsets(shapePrefabs[prefabIndex]);
         if (offs == null || offs.Count == 0) return false;
-        int W = gm.GridWidth, H = gm.GridHeight;
-        for (int x = 0; x < W; x++)
+        // If variants are enabled, consider all allowed orientations
+        if (enableOrientationVariants)
         {
-            for (int y = 0; y < H; y++)
+            var variants = BuildVariants(new List<Vector2Int>(offs));
+            foreach (var v in variants)
             {
-                if (gm.CanPlaceShape(new Vector2Int(x, y), offs)) return true;
+                int W = gm.GridWidth, H = gm.GridHeight;
+                for (int x = 0; x < W; x++)
+                    for (int y = 0; y < H; y++)
+                        if (gm.CanPlaceShape(new Vector2Int(x, y), v)) return true;
             }
+            return false;
         }
-        return false;
+        else
+        {
+            int W = gm.GridWidth, H = gm.GridHeight;
+            for (int x = 0; x < W; x++)
+                for (int y = 0; y < H; y++)
+                    if (gm.CanPlaceShape(new Vector2Int(x, y), offs)) return true;
+            return false;
+        }
     }
 
     // Adaptive set: one high-score shape, one variety, one challenge (if safe)
@@ -182,17 +194,33 @@ public partial class ShapeSpawner
             };
         }
 
-        // Score each prefab by best placement; collect valid ones
+        // Score each prefab by best placement; collect valid ones (variant-aware)
         var valid = new List<(int idx, float score, int tiles)>();
         for (int i = 0; i < shapePrefabs.Length; i++)
         {
             var offs = GetOffsets(shapePrefabs[i]);
             if (offs == null || offs.Count == 0) continue;
             int tiles = offs.Count;
-            int count = CountValidPlacements(gm, offs);
+            int count = CountValidPlacementsConsideringVariants(gm, offs);
             if (count == 0) continue;
             bool hv = false;
-            float best = EvaluateBestPlacementScoreForOffsets(gm, offs, ref hv);
+            // Evaluate using the best variant's placement score
+            float best = float.NegativeInfinity;
+            if (enableOrientationVariants)
+            {
+                var variants = BuildVariants(new List<Vector2Int>(offs));
+                var snap = BoardScoring.CreateSnapshot(gm);
+                foreach (var v in variants)
+                {
+                    bool h;
+                    float s = BoardScoring.EvaluateBestPlacementScore(snap, v, out h);
+                    if (h) { hv = true; if (s > best) best = s; }
+                }
+            }
+            else
+            {
+                best = EvaluateBestPlacementScoreForOffsets(gm, offs, ref hv);
+            }
             if (hv) valid.Add((i, best, tiles));
         }
         if (valid.Count == 0)
@@ -360,33 +388,19 @@ public partial class ShapeSpawner
         var result = new int[3] { 0, 0, 0 };
         if (gm == null || n == 0) return DetermineNextSetIndices();
 
-        // Build valid candidates with their best placement footprints
+        // Build valid candidates with their best placement footprints using a single snapshot
         var candidates = new List<(int idx, List<Vector2Int> bestPlacement, float score, int tiles)>();
+        var snap = BoardScoring.CreateSnapshot(gm);
         for (int i = 0; i < n; i++)
         {
             var offs = GetOffsets(shapePrefabs[i]);
             if (offs == null || offs.Count == 0) continue;
-            // Find best placement and footprint
-            float bestScore = float.NegativeInfinity; List<Vector2Int> bestFoot = null; bool hasValid = false;
-            for (int x = 0; x < gm.GridWidth; x++)
-            {
-                for (int y = 0; y < gm.GridHeight; y++)
-                {
-                    var start = new Vector2Int(x, y);
-                    if (!gm.CanPlaceShape(start, offs)) continue;
-                    hasValid = true;
-                    float s = ScorePlacement(gm, gm.GetOccupiedPositions(), offs, start);
-                    if (s > bestScore)
-                    {
-                        bestScore = s;
-                        // footprint of placed cells
-                        bestFoot = new List<Vector2Int>(offs.Count);
-                        foreach (var o in offs) bestFoot.Add(start + o);
-                    }
-                }
-            }
+            // Find best placement and footprint via BoardScoring
+            bool hasValid;
+            List<Vector2Int> bestFoot;
+            float bestScore = BoardScoring.EvaluateBestPlacementScoreAndFootprint(snap, offs, out bestFoot, out hasValid);
             if (hasValid && bestFoot != null)
-                candidates.Add((i, bestFoot, bestScore, offs.Count));
+                candidates.Add((i, new List<Vector2Int>(bestFoot), bestScore, offs.Count));
         }
         if (candidates.Count < 2)
         {

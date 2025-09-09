@@ -80,6 +80,10 @@ public partial class ShapeSpawner : MonoBehaviour
     [SerializeField] private bool enableAutoRerollOnDeadEnd = true;
     [SerializeField] private float deadEndRerollDelay = 2.0f;
     [SerializeField, Min(0)] private int maxRerollsPerSession = 2;
+    [Tooltip("Immediately reroll the tray once if the freshly spawned set has no valid moves (after orientation variants are applied).")]
+    [SerializeField] private bool guaranteeMoveOnSpawn = true;
+    [Tooltip("How many immediate reroll attempts are allowed per spawn to ensure at least one valid move.")]
+    [SerializeField, Min(0)] private int maxImmediateRerollAttempts = 1;
 
     [Header("Challenge Rounds")]
     [Tooltip("Occasionally present a set that forces a meaningful choice (overlapping best placements, scarcity, etc.)")]
@@ -115,6 +119,11 @@ public partial class ShapeSpawner : MonoBehaviour
     private float noMoveTimer = 0f;
     private int rerollsUsed = 0;
     private int setsSpawnedCount = 0;
+    private int immediateSpawnRerollAttempts = 0;
+
+    // Perf: cache expensive board-wide checks briefly
+    private float lastValidMoveCheckTime = -999f;
+    private bool lastHasAnyValidMove = true;
 
     [Header("Difficulty")]
     [Tooltip("0 = easiest, 1 = hardest. Affects set composition, challenge frequency, and perfect-clear generosity.")]

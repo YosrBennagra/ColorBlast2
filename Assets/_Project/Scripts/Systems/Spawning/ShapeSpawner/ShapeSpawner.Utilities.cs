@@ -31,6 +31,25 @@ public partial class ShapeSpawner
         return count;
     }
 
+    // Variant-aware placement counting: tries all allowed rotations/mirrors and returns the max placements among variants
+    private int CountValidPlacementsConsideringVariants(Gameplay.GridManager gm, List<Vector2Int> baseOffsets)
+    {
+        if (gm == null || baseOffsets == null || baseOffsets.Count == 0) return 0;
+        if (!enableOrientationVariants)
+        {
+            return CountValidPlacements(gm, baseOffsets);
+        }
+        int best = 0;
+        var variants = BuildVariants(baseOffsets);
+        for (int i = 0; i < variants.Count; i++)
+        {
+            int c = CountValidPlacements(gm, variants[i]);
+            if (c > best) best = c;
+            if (best > 0 && variants.Count == 1) break; // micro short-circuit
+        }
+        return best;
+    }
+
     // Pick a big shape by tile count threshold; optionally require at least one valid placement.
     private int FindBigShapeIndex(int minTiles, bool preferPlaceable)
     {
@@ -43,7 +62,7 @@ public partial class ShapeSpawner
             if (offs == null) continue;
             if (offs.Count >= Mathf.Max(1, minTiles))
             {
-                if (!preferPlaceable || (gm != null && CountValidPlacements(gm, offs) > 0))
+                if (!preferPlaceable || (gm != null && CountValidPlacementsConsideringVariants(gm, offs) > 0))
                 {
                     candidates.Add(i);
                 }
@@ -87,13 +106,39 @@ public partial class ShapeSpawner
         if (baseOffsets == null || baseOffsets.Count == 0) return;
         var variants = BuildVariants(baseOffsets);
         if (variants.Count <= 1) return;
+
+        // Prefer a placeable variant on the current board
+        var gm = GetGridManager();
+        List<Vector2Int> bestVar = null;
+        if (gm != null)
+        {
+            bool hasValid = false;
+            float bestScore = float.NegativeInfinity;
+            var snap = BoardScoring.CreateSnapshot(gm);
+            for (int i = 0; i < variants.Count; i++)
+            {
+                bool hv;
+                float sc = BoardScoring.EvaluateBestPlacementScore(snap, variants[i], out hv);
+                if (hv && sc > bestScore)
+                {
+                    bestScore = sc; bestVar = variants[i]; hasValid = true;
+                }
+            }
+            if (hasValid && bestVar != null)
+            {
+                shape.ApplyOffsetsAndRealign(bestVar);
+                return;
+            }
+        }
+
+        // Fallback to deterministic/random variant if none are placeable
         int seed = prefabIndex * 73856093 ^ spawnIndex * 19349663 ^ bagCursor * 83492791;
         if (!useDeterministicSelection) seed = (int)(Random.value * int.MaxValue);
         int pick = Mathf.Abs(seed) % variants.Count;
-        var chosen = variants[pick];
-        if (AreOffsetsEqual(baseOffsets, chosen) && variants.Count > 1)
-        { pick = (pick + 1) % variants.Count; chosen = variants[pick]; }
-        shape.ApplyOffsetsAndRealign(chosen);
+        var fallback = variants[pick];
+        if (AreOffsetsEqual(baseOffsets, fallback) && variants.Count > 1)
+        { pick = (pick + 1) % variants.Count; fallback = variants[pick]; }
+        shape.ApplyOffsetsAndRealign(fallback);
     }
 
     private bool AreOffsetsEqual(List<Vector2Int> a, List<Vector2Int> b)
@@ -212,48 +257,15 @@ public partial class ShapeSpawner
     // Scoring heuristic similar to AdaptiveShapeSelector for internal use
     private float EvaluateBestPlacementScoreForOffsets(Gameplay.GridManager gm, List<Vector2Int> offsets, ref bool hasValid)
     {
-        hasValid = false; float best = float.NegativeInfinity;
-        int W = gm.GridWidth, H = gm.GridHeight;
-        var occupied = gm.GetOccupiedPositions();
-        for (int x = 0; x < W; x++)
-        {
-            for (int y = 0; y < H; y++)
-            {
-                var start = new Vector2Int(x, y);
-                if (!gm.CanPlaceShape(start, offsets)) continue;
-                hasValid = true;
-                float s = ScorePlacement(gm, occupied, offsets, start);
-                if (s > best) best = s;
-            }
-        }
-        return best;
+        var snap = BoardScoring.CreateSnapshot(gm);
+        return BoardScoring.EvaluateBestPlacementScore(snap, offsets, out hasValid);
     }
 
     private float ScorePlacement(Gameplay.GridManager gm, HashSet<Vector2Int> occupied, List<Vector2Int> offsets, Vector2Int start)
     {
-        int W = gm.GridWidth, H = gm.GridHeight;
-        var sim = new HashSet<Vector2Int>(occupied);
-        var placed = new List<Vector2Int>(offsets.Count);
-        foreach (var o in offsets) { var p = start + o; sim.Add(p); placed.Add(p); }
-        int linesCompleted = 0;
-        for (int y = 0; y < H; y++) { bool full = true; for (int x = 0; x < W; x++) { if (!sim.Contains(new Vector2Int(x, y))) { full = false; break; } } if (full) linesCompleted++; }
-        int colsCompleted = 0;
-        for (int x = 0; x < W; x++) { bool full = true; for (int y = 0; y < H; y++) { if (!sim.Contains(new Vector2Int(x, y))) { full = false; break; } } if (full) colsCompleted++; }
-        int adjacency = 0;
-        foreach (var p in placed)
-        {
-            if (occupied.Contains(new Vector2Int(p.x + 1, p.y))) adjacency++;
-            if (occupied.Contains(new Vector2Int(p.x - 1, p.y))) adjacency++;
-            if (occupied.Contains(new Vector2Int(p.x, p.y + 1))) adjacency++;
-            if (occupied.Contains(new Vector2Int(p.x, p.y - 1))) adjacency++;
-        }
-        Vector2 center = new Vector2((W - 1) * 0.5f, (H - 1) * 0.5f);
-        float avgDist = 0f; foreach (var p in placed) avgDist += Vector2.Distance(center, new Vector2(p.x, p.y));
-        avgDist /= Mathf.Max(1, placed.Count);
-        float maxDist = Vector2.Distance(Vector2.zero, new Vector2(center.x, center.y));
-        float centrality = (maxDist - avgDist);
-        float score = 100f * linesCompleted + 40f * colsCompleted + 3f * adjacency + 0.5f * centrality;
-        return score;
+        // Legacy signature kept for callers; internally use BoardScoring with a temp snapshot
+        var snap = BoardScoring.CreateSnapshot(gm);
+        return BoardScoring.ScorePlacementFast(snap, offsets, start);
     }
 
     // Public setter for spawn points (renamed to avoid any ambiguous resolution with older signatures)
