@@ -209,7 +209,7 @@ public class ShapeCreatorTool : EditorWindow
     };
 
 
-    [MenuItem("Tools/ColorBlast2/Shape Creator")]
+    [MenuItem("Tools/Shape Blaster/Shape Creator")]
     public static void ShowWindow()
     {
         GetWindow<ShapeCreatorTool>("Shape Creator");
@@ -217,10 +217,10 @@ public class ShapeCreatorTool : EditorWindow
 
     void OnGUI()
     {
-        GUILayout.Label("ColorBlast2 Shape Creator", EditorStyles.boldLabel);
+        GUILayout.Label("Shape Blaster Shape Creator", EditorStyles.boldLabel);
         GUILayout.Space(5);
 
-        EditorGUILayout.HelpBox("This tool creates shape prefabs for the new ColorBlast2 architecture.", MessageType.Info);
+        EditorGUILayout.HelpBox("This tool creates shape prefabs for the new Shape Blaster architecture.", MessageType.Info);
         GUILayout.Space(10);
 
         tilePrefab = (GameObject)EditorGUILayout.ObjectField("Tile Prefab", tilePrefab, typeof(GameObject), false);

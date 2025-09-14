@@ -8,13 +8,14 @@ using System.Collections;
 
 
 
-namespace ColorBlast2.Systems.Scoring
+namespace ShapeBlaster.Systems.Scoring
 {
     public class ScoreManager : MonoBehaviour
     {
+    public static System.Action<int> OnScoreChanged;
     private enum ComboSpawnMode { GridCenter, AboveScoreText }
         [Header("UI References")]
-    public ColorBlast2.UI.Core.CoreScoreDisplay scoreDisplay;
+    public ShapeBlaster.UI.Core.CoreScoreDisplay scoreDisplay;
         public TextMeshProUGUI comboText;
         public Transform comboSpriteParent;
         public GameObject comboSpritePrefab;
@@ -131,6 +132,9 @@ namespace ColorBlast2.Systems.Scoring
             }
             AnimateScore();
             AnimateScoreIncrement(displayedScore, score);
+
+            // Notify listeners (e.g., Adventure objectives)
+            OnScoreChanged?.Invoke(score);
 
             // Rainbow animation for score text only when ACTUAL score is above high score
             if (isNowAboveHighScore)
@@ -547,6 +551,7 @@ namespace ColorBlast2.Systems.Scoring
             UpdateScoreUI();
             if (comboText) comboText.gameObject.SetActive(false);
             StopRainbowAnimations();
+            OnScoreChanged?.Invoke(score);
         }
 
         public int GetScore() => score;

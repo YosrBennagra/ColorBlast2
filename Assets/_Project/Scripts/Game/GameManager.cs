@@ -88,7 +88,7 @@ namespace ColorBlast.Game
             }
             
             if (enableDebugLogs)
-                Debug.Log("🎮 Initializing ColorBlast2 Game Systems...");
+                Debug.Log("🎮 Initializing Shape Blaster Game Systems...");
             
             try
             {
@@ -150,6 +150,16 @@ namespace ColorBlast.Game
                 if (!Services.Has<ShapeDestructionSystem>())
                 {
                     Services.Register(shapeDestructionSystem);
+                }
+                // Adventure Manager (only when Adventure mode is active)
+                if (ShapeBlaster.Adventure.AdventureSession.IsAdventureMode)
+                {
+                    var adv = FindFirstObjectByType<ShapeBlaster.Adventure.AdventureManager>();
+                    if (adv == null)
+                    {
+                        var advGO = new GameObject("AdventureManager");
+                        adv = advGO.AddComponent<ShapeBlaster.Adventure.AdventureManager>();
+                    }
                 }
                 if (enableDebugLogs)
                     Debug.Log("✅ ShapeDestructionSystem registered");

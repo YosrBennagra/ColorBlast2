@@ -13,7 +13,7 @@ namespace ColorBlast.Tools
         [Header("Mobile Layout Settings")]
         [SerializeField] private float gridSize = 0.8f;
         [SerializeField] private int gridWidth = 8;
-        [SerializeField] private int gridHeight = 10;
+        [SerializeField] private int gridHeight = 8;
         [SerializeField] private Vector3 gridPosition = new Vector3(0, -3, 0);
         
         [Header("Spawn Point Settings")]

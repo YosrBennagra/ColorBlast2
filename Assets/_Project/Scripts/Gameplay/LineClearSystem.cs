@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 using ColorBlast.Core.Architecture;
-using ColorBlast2.Systems.Scoring;
+using ShapeBlaster.Systems.Scoring;
 using ColorBlast.Game;
 
 namespace Gameplay
@@ -15,6 +15,15 @@ public class LineClearSystem : MonoBehaviour
 {
     public static event Action<List<Vector2Int>> OnLinesCleared;
     public static event Action<int> OnShapesDestroyed;
+    // Detailed info per cleared tile (theme/sprite at clear time)
+    public class TileClearInfo
+    {
+        public Vector2Int position;
+        public string themeName;
+        public Sprite sprite;
+        public Color color;
+    }
+    public static event Action<List<TileClearInfo>> OnTilesClearedDetailed;
         
         private GridManager gridManager;
         private ShapeDestructionSystem destructionSystem;
@@ -142,6 +151,28 @@ public class LineClearSystem : MonoBehaviour
                     // Build a per-cell visual snapshot before we clear (so sprites/colors are available for FX)
                     var visuals = CaptureTileVisuals(currentClearedPositions);
 
+                    // Build detailed tile info (theme + sprite) before grid/shape mutations
+                    var detailed = new List<TileClearInfo>(currentClearedPositions.Count);
+                    foreach (var pos in currentClearedPositions)
+                    {
+                        string themeName = null;
+                        Sprite sprite = null; Color color = Color.white;
+                        // Try visuals snapshot first for sprite/color
+                        if (visuals != null && visuals.TryGetValue(pos, out var tv) && tv != null)
+                        {
+                            sprite = tv.sprite; color = tv.color;
+                        }
+                        // Find the owning shape (pre-clear) to get theme name
+                        var shape = FindShapeAtGridPos(pos);
+                        if (shape != null)
+                        {
+                            var st = shape.GetComponent<ShapeThemeStorage>();
+                            if (st != null && st.CurrentTheme != null)
+                                themeName = st.CurrentTheme.themeName;
+                        }
+                        detailed.Add(new TileClearInfo { position = pos, themeName = themeName, sprite = sprite, color = color });
+                    }
+
                     // Start sequential per-line clear FX (visual only; logic clears immediately below)
                     StartCoroutine(PlaySequentialClearFX(completedRows, completedCols, visuals, 0.035f));
 
@@ -155,6 +186,12 @@ public class LineClearSystem : MonoBehaviour
                     }
                     totalClearedPositions.AddRange(currentClearedPositions);
                     totalBlocksCleared += currentClearedPositions.Count;
+
+                    // Notify listeners with detailed info for this cascade step
+                    if (detailed.Count > 0)
+                    {
+                        OnTilesClearedDetailed?.Invoke(detailed);
+                    }
                 }
                 cascadeLevel++;
                 

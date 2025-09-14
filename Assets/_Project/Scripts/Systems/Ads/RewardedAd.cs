@@ -37,6 +37,11 @@ public class RewardedAd : MonoBehaviour
   {
     _adUnitId = id;
   }
+#if DEVELOPMENT_BUILD
+  // In Development builds, force the Google test rewarded ID to prevent accidental live traffic
+  Debug.Log("[Ads] Forcing TEST rewarded ID in this build.");
+  _adUnitId = ANDROID_TEST_REWARDED_ID;
+#endif
   }
  
   // Load content to the Ad Unit:
@@ -63,7 +68,7 @@ public class RewardedAd : MonoBehaviour
     Debug.Log($"Error loading Rewarded Ad Unit: {_adUnitId} - {msg}");
         IsLoaded = false;
         OnFailedToLoad?.Invoke(_adUnitId, err, msg);
-        Invoke(nameof(LoadAd), 5f);
+        ScheduleRetry();
         return;
       }
       _rewarded = ad;
@@ -99,7 +104,7 @@ public class RewardedAd : MonoBehaviour
 #endif
   }
   public void Show() => ShowAd();
- 
+
 #if GOOGLE_MOBILE_ADS
   private void WireRewardedCallbacks()
   {
@@ -115,4 +120,26 @@ public class RewardedAd : MonoBehaviour
     _rewarded.OnAdClicked += () => { OnShowClickEvent?.Invoke(_adUnitId); };
   }
 #endif
+
+#if GOOGLE_MOBILE_ADS
+  private int _retryAttempt;
+  private void ScheduleRetry()
+  {
+    _retryAttempt = Mathf.Clamp(_retryAttempt + 1, 1, 6);
+    float delay = Mathf.Pow(2, _retryAttempt); // 2..64
+    CancelInvoke(nameof(LoadAd));
+    Invoke(nameof(LoadAd), Mathf.Min(60f, delay));
+  }
+#endif
+
+  private void OnDestroy()
+  {
+#if GOOGLE_MOBILE_ADS
+    if (_rewarded != null)
+    {
+      try { _rewarded.Destroy(); } catch { }
+      _rewarded = null;
+    }
+#endif
+  }
 }

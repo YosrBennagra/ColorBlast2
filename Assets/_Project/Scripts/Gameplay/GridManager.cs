@@ -16,7 +16,7 @@ namespace Gameplay
     {
         [Header("Grid Size")]
         [SerializeField] private int gridWidth = 8;
-        [SerializeField] private int gridHeight = 10;
+        [SerializeField] private int gridHeight = 8;
 
         [Header("Pixel Art Settings")]
         [Tooltip("Pixels Per Unit used by your sprites (e.g. 16, 32, 100). Must match your art/Pixel Perfect Camera.")]

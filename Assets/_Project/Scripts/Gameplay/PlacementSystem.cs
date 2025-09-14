@@ -107,7 +107,7 @@ namespace Gameplay
             shape.MarkAsPlaced();
 
             // Award score for shape placement
-            var scoreManager = GameObject.FindAnyObjectByType<ColorBlast2.Systems.Scoring.ScoreManager>();
+            var scoreManager = GameObject.FindAnyObjectByType<ShapeBlaster.Systems.Scoring.ScoreManager>();
             if (scoreManager != null)
             {
                 scoreManager.AddShapePlacementPoints(shape.ShapeOffsets.Count);

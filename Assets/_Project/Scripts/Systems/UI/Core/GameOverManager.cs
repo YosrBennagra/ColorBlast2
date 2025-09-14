@@ -1,7 +1,7 @@
 using UnityEngine;
 using System;
 
-namespace ColorBlast2.UI.Core
+namespace ShapeBlaster.UI.Core
 {
     /// <summary>
     /// Simple game over detector: shows a Game Over panel when none of the current tray shapes
@@ -491,7 +491,7 @@ namespace ColorBlast2.UI.Core
             if (!string.IsNullOrEmpty(gameEndSceneName))
             {
                 // Persist final score for GameEnd scene UI
-                var scoreMgr = FindFirstObjectByType<ColorBlast2.Systems.Scoring.ScoreManager>();
+                var scoreMgr = FindFirstObjectByType<ShapeBlaster.Systems.Scoring.ScoreManager>();
                 if (scoreMgr != null)
                 {
                     PlayerPrefs.SetInt("LastScore", scoreMgr.GetScore());

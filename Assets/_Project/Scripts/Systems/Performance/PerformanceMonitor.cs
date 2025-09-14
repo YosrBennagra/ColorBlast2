@@ -2,7 +2,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Performance monitoring tool for ColorBlast2
+/// Performance monitoring tool for Shape Blaster
 /// </summary>
 public class PerformanceMonitor : MonoBehaviour
 {

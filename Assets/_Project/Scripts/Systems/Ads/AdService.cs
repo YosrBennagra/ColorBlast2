@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace ColorBlast2.Systems.Ads
+namespace ShapeBlaster.Systems.Ads
 {
     /// <summary>
     /// Wrapper that matches the expected AdService API used around the project,

@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace ColorBlast2.UI.MainMenu
+namespace ShapeBlaster.UI.MainMenu
 {
     /// <summary>
     /// Main UI controller for the MainMenu scene. Only handles Play button.
@@ -12,6 +12,7 @@ namespace ColorBlast2.UI.MainMenu
     {
 
     public UnityEngine.UI.Button playButton;
+    public UnityEngine.UI.Button adventureButton;
     public TMPro.TMP_Text highScoreText;
 
 
@@ -19,6 +20,8 @@ namespace ColorBlast2.UI.MainMenu
         {
             if (playButton != null)
                 playButton.onClick.AddListener(OnPlayClicked);
+            if (adventureButton != null)
+                adventureButton.onClick.AddListener(OnAdventureClicked);
             UpdateHighScoreDisplay();
         }
 
@@ -34,6 +37,11 @@ namespace ColorBlast2.UI.MainMenu
         private void OnPlayClicked()
         {
             UnityEngine.SceneManagement.SceneManager.LoadScene("CoreGame");
+        }
+
+        private void OnAdventureClicked()
+        {
+            ShapeBlaster.Adventure.AdventureSession.StartAdventureAndLoadGame();
         }
     }
 }

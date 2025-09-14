@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace ColorBlast2.UI.MainMenu
+namespace ShapeBlaster.UI.MainMenu
 {
     /// <summary>
     /// Handles mute button logic for main menu.

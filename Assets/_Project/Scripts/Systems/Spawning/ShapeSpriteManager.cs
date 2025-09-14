@@ -871,4 +871,34 @@ public class ShapeSpriteManager : MonoBehaviour
     }
     
     #endregion
+
+    // --- Adventure/Level helpers ---
+    /// <summary>
+    /// Find a theme by its name (case-insensitive). Returns null if not found.
+    /// </summary>
+    public SpriteTheme FindThemeByName(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        for (int i = 0; i < spriteThemes.Count; i++)
+        {
+            var t = spriteThemes[i];
+            if (t != null && string.Equals(t.themeName, name, System.StringComparison.OrdinalIgnoreCase))
+                return t;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Get all theme names for level generation.
+    /// </summary>
+    public List<string> GetThemeNames()
+    {
+        var list = new List<string>();
+        for (int i = 0; i < spriteThemes.Count; i++)
+        {
+            var t = spriteThemes[i];
+            if (t != null && !string.IsNullOrEmpty(t.themeName)) list.Add(t.themeName);
+        }
+        return list;
+    }
 }

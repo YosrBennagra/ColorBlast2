@@ -6,7 +6,7 @@ using UnityEditor;
 /// </summary>
 public class ShapeThemeSetupTool : EditorWindow
 {
-    [MenuItem("Tools/ColorBlast2/Shape Theme Setup")]
+    [MenuItem("Tools/Shape Blaster/Shape Theme Setup")]
     public static void ShowWindow()
     {
         GetWindow<ShapeThemeSetupTool>("Shape Theme Setup");
@@ -18,7 +18,7 @@ public class ShapeThemeSetupTool : EditorWindow
         GUILayout.Space(5);
 
         EditorGUILayout.HelpBox(
-            "This tool helps you set up the Shape Theme system for your ColorBlast2 game.\n\n" +
+            "This tool helps you set up the Shape Theme system for your Shape Blaster game.\n\n" +
             "The system allows shapes to spawn with different visual themes like water, land, etc.",
             MessageType.Info
         );

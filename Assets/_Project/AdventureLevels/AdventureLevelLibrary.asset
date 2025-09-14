@@ -1,0 +1,847 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: AdventureLevelLibrary
+  m_EditorClassIdentifier: Assembly-CSharp:ShapeBlaster.Adventure:AdventureLevelLibrary
+  allLevels:
+  - id: L01
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 19 Grass AND Reach 2,947
+    prePlacedTiles:
+    - position: {x: 0, y: 0}
+      themeName: 
+      spriteOverride: {fileID: -6427536747699582976, guid: eb97ad89338092b4eb8b126b91a142a0, type: 3}
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 19
+    - type: 0
+      targetScore: 2947
+      themeName: 
+      targetCount: 0
+  - id: L02
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 4,241 AND Clear 9 Volcano
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 4241
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 9
+  - id: L03
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 12 Water
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 12
+  - id: L04
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 3,964 OR Clear 10 Volcano
+    prePlacedTiles:
+    - position: {x: 2, y: 3}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    - position: {x: 3, y: 3}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    - position: {x: 2, y: 4}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    mode: 1
+    goals:
+    - type: 0
+      targetScore: 3964
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 10
+  - id: L05
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 19 Water OR Reach 2,061
+    prePlacedTiles:
+    - position: {x: 2, y: 4}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    - position: {x: 3, y: 4}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    - position: {x: 2, y: 5}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    mode: 1
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 19
+    - type: 0
+      targetScore: 2061
+      themeName: 
+      targetCount: 0
+  - id: L06
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 11 Grass AND Clear 10 Volcano
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 11
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 10
+  - id: L07
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 9 Grass
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 9
+  - id: L08
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 8 Volcano AND Clear 8 Water
+    prePlacedTiles:
+    - position: {x: 3, y: 4}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    - position: {x: 4, y: 4}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    - position: {x: 3, y: 5}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 8
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 8
+  - id: L09
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 3,990
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 0
+      targetScore: 3990
+      themeName: 
+      targetCount: 0
+  - id: L10
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 19 Volcano
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 19
+  - id: L11
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 18 Volcano
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 18
+  - id: L12
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 10 Water
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 10
+  - id: L13
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 3,705
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 3705
+      themeName: 
+      targetCount: 0
+  - id: L14
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 13 Volcano AND Reach 3,066
+    prePlacedTiles:
+    - position: {x: 2, y: 5}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    - position: {x: 3, y: 5}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    - position: {x: 2, y: 6}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 13
+    - type: 0
+      targetScore: 3066
+      themeName: 
+      targetCount: 0
+  - id: L15
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 2,346 AND Clear 15 Grass
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 2346
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 15
+  - id: L16
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 16 Volcano AND Clear 6 Grass
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 16
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 6
+  - id: L17
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 3,582 AND Clear 11 Volcano
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 3582
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 11
+  - id: L18
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 3,199 OR Clear 11 Grass
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 0
+      targetScore: 3199
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 11
+  - id: L19
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 2,558
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 2558
+      themeName: 
+      targetCount: 0
+  - id: L20
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 13 Water
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 13
+  - id: L21
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 3,687 AND Clear 10 Water
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 3687
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 10
+  - id: L22
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 1,732
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 0
+      targetScore: 1732
+      themeName: 
+      targetCount: 0
+  - id: L23
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 6 Water OR Clear 18 Volcano
+    prePlacedTiles:
+    - position: {x: 2, y: 5}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    - position: {x: 3, y: 5}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    - position: {x: 2, y: 6}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    mode: 1
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 6
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 18
+  - id: L24
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 7 Grass
+    prePlacedTiles:
+    - position: {x: 6, y: 4}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    - position: {x: 7, y: 4}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    - position: {x: 6, y: 5}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 7
+  - id: L25
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 3,922
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 3922
+      themeName: 
+      targetCount: 0
+  - id: L26
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 8 Grass
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 8
+  - id: L27
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 19 Water
+    prePlacedTiles:
+    - position: {x: 3, y: 5}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    - position: {x: 4, y: 5}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    - position: {x: 3, y: 6}
+      themeName: Water
+      spriteOverride: {fileID: 0}
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 19
+  - id: L28
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 2,913 OR Clear 10 Grass
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 0
+      targetScore: 2913
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 10
+  - id: L29
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 9 Water
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 9
+  - id: L30
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 13 Grass
+    prePlacedTiles:
+    - position: {x: 1, y: 0}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    - position: {x: 2, y: 0}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    - position: {x: 1, y: 1}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 13
+  - id: L31
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 15 Water
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 15
+  - id: L32
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 9 Volcano
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 9
+  - id: L33
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 14 Grass
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 14
+  - id: L34
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 18 Water
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 18
+  - id: L35
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 12 Grass
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 12
+  - id: L36
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 11 Water AND Clear 7 Grass
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 11
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 7
+  - id: L37
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 3,982
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 3982
+      themeName: 
+      targetCount: 0
+  - id: L38
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 4,720
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 0
+      targetScore: 4720
+      themeName: 
+      targetCount: 0
+  - id: L39
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 4,677
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 4677
+      themeName: 
+      targetCount: 0
+  - id: L40
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 15 Grass AND Clear 12 Water
+    prePlacedTiles:
+    - position: {x: 0, y: 4}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    - position: {x: 1, y: 4}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    - position: {x: 0, y: 5}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 15
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 12
+  - id: L41
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 14 Grass
+    prePlacedTiles:
+    - position: {x: 2, y: 5}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    - position: {x: 3, y: 5}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    - position: {x: 2, y: 6}
+      themeName: Grass
+      spriteOverride: {fileID: 0}
+    mode: 1
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 14
+  - id: L42
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 7 Volcano
+    prePlacedTiles:
+    - position: {x: 2, y: 2}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    - position: {x: 3, y: 2}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    - position: {x: 2, y: 3}
+      themeName: Volcano
+      spriteOverride: {fileID: 0}
+    mode: 1
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 7
+  - id: L43
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 14 Volcano AND Clear 7 Grass
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 14
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 7
+  - id: L44
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 19 Water AND Reach 4,392
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 19
+    - type: 0
+      targetScore: 4392
+      themeName: 
+      targetCount: 0
+  - id: L45
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 2,377
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 2377
+      themeName: 
+      targetCount: 0
+  - id: L46
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 12 Water
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 12
+  - id: L47
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 18 Water
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 18
+  - id: L48
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 2,394 OR Clear 8 Water
+    prePlacedTiles: []
+    mode: 1
+    goals:
+    - type: 0
+      targetScore: 2394
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Water
+      targetCount: 8
+  - id: L49
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Reach 2,446 AND Clear 6 Grass
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 0
+      targetScore: 2446
+      themeName: 
+      targetCount: 0
+    - type: 1
+      targetScore: 0
+      themeName: Grass
+      targetCount: 6
+  - id: L50
+    type: 0
+    targetScore: 0
+    themeName: 
+    targetCount: 0
+    description: Clear 9 Volcano
+    prePlacedTiles: []
+    mode: 0
+    goals:
+    - type: 1
+      targetScore: 0
+      themeName: Volcano
+      targetCount: 9

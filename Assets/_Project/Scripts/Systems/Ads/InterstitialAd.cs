@@ -6,6 +6,7 @@ using GoogleMobileAds.Api;
  
 public class InterstitialAd : MonoBehaviour
 {
+  private const string ANDROID_TEST_INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712"; // Google test ID
   [SerializeField] string _androidAdUnitId = "ca-app-pub-9594729661204695/5639203748";
   string _adUnitId;
   public bool IsLoaded { get; private set; }
@@ -28,7 +29,12 @@ public class InterstitialAd : MonoBehaviour
   void Awake()
   {
   // Android only
-  _adUnitId = _androidAdUnitId;
+  _adUnitId = (_androidAdUnitId ?? string.Empty).Trim();
+#if DEVELOPMENT_BUILD
+  // In Development builds, force the Google test interstitial to validate SDK path on device
+  Debug.Log("[Ads] Forcing TEST interstitial ID in this build.");
+  _adUnitId = ANDROID_TEST_INTERSTITIAL_ID;
+#endif
   }
  
   // Load content to the Ad Unit:
@@ -55,7 +61,7 @@ public class InterstitialAd : MonoBehaviour
           Debug.Log($"Error loading Ad Unit: {_adUnitId} - {msg}");
           IsLoaded = false;
           OnFailedToLoad?.Invoke(_adUnitId, err, msg);
-          Invoke(nameof(LoadAd), 5f);
+          ScheduleRetry();
           return;
         }
         _interstitial = ad;
@@ -96,5 +102,27 @@ public class InterstitialAd : MonoBehaviour
 #endif
   }
   public void Show() => ShowAd();
- 
+
+#if GOOGLE_MOBILE_ADS
+  private int _retryAttempt;
+  private void ScheduleRetry()
+  {
+    _retryAttempt = Mathf.Clamp(_retryAttempt + 1, 1, 6);
+    float delay = Mathf.Pow(2, _retryAttempt); // 2,4,8,16,32,64
+    CancelInvoke(nameof(LoadAd));
+    Invoke(nameof(LoadAd), Mathf.Min(60f, delay));
+  }
+#endif
+
+  private void OnDestroy()
+  {
+#if GOOGLE_MOBILE_ADS
+    if (_interstitial != null)
+    {
+      try { _interstitial.Destroy(); } catch { }
+      _interstitial = null;
+    }
+#endif
+  }
+
 }

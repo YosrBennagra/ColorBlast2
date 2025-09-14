@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine.UI;
 using System.Collections;
 
-namespace ColorBlast2.UI.GameEnd
+namespace ShapeBlaster.UI.GameEnd
 {
     /// <summary>
     /// Handles GameEnd scene UI: shows final score/high score, replay and home buttons.

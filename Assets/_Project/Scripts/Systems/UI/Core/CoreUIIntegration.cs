@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ColorBlast2.UI.Core
+namespace ShapeBlaster.UI.Core
 {
     /// <summary>
     /// Attach to a GameObject in CoreGame scene to connect UI events to game systems.

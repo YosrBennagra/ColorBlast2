@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ColorBlast2.UI.MainMenu
+namespace ShapeBlaster.UI.MainMenu
 {
     /// <summary>
     /// Handles settings panel logic for main menu.

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ColorBlast2.UI.Core
+namespace ShapeBlaster.UI.Core
 {
     /// <summary>
     /// Main UI controller for the CoreGame scene. Coordinates panels, score, settings, mute, etc.
@@ -16,7 +16,7 @@ namespace ColorBlast2.UI.Core
     public CoreSettingsPanel settingsPanel;
     // UI Management for the core gameplay scene
     // Note: These scripts manage UI overlays for game state transitions
-    // Removed: public ColorBlast2.UI.Audio.BackgroundMusicController bgmController;
+    // Removed: public ShapeBlaster.UI.Audio.BackgroundMusicController bgmController;
     public UnityEngine.UI.Button settingsButton;
 
         private void Start()

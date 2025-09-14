@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ColorBlast2.UI.Core
+namespace ShapeBlaster.UI.Core
 {
     /// <summary>
     /// Handles settings panel logic (show/hide, sorting order, etc).

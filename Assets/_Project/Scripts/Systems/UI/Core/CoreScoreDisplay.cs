@@ -1,7 +1,7 @@
 using UnityEngine;
 using TMPro;
 
-namespace ColorBlast2.UI.Core
+namespace ShapeBlaster.UI.Core
 {
     /// <summary>
     /// Handles score and high score display and animation.
