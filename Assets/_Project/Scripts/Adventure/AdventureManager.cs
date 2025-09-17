@@ -18,6 +18,8 @@ namespace ShapeBlaster.Adventure
         public string levelLibraryResourcePath = "Adventure/AdventureLevelLibrary";
         [Tooltip("How many levels per weekly adventure")]
         public int levelsPerWeek = 50;
+        [Tooltip("Apply pre-placed tiles defined in levels (disable to keep boards empty at start).")]
+        public bool usePrePlacedTiles = false;
 
         [Header("Runtime Generator Settings")]
         public bool generatorAllowScoreGoal = true;
@@ -339,6 +341,7 @@ namespace ShapeBlaster.Adventure
         private void TryApplyPrePlacedTiles()
         {
             if (appliedThisScene) return;
+            if (!usePrePlacedTiles) { appliedThisScene = true; return; }
             if (currentLevel == null || currentLevel.prePlacedTiles == null || currentLevel.prePlacedTiles.Count == 0) { appliedThisScene = true; return; }
             var gm = FindFirstObjectByType<GridManager>();
             if (gm == null) return;

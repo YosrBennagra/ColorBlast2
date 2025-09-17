@@ -1,9 +1,10 @@
 using System;
 using UnityEngine;
 using System.Collections;
+using ShapeBlaster.Systems.Ads;
 
 /// <summary>
-/// Thin bridge over your AdsInitializer, InterstitialAd, and BannerAd scripts.
+/// Thin bridge over your AdsInitializer, InterstitialAd, BannerAd, RewardedAd, and NativeAdView scripts.
 /// Provides simple methods the game can call without duplicating SDK logic.
 /// Assumes these components exist in the active scene and are configured in the Inspector.
 /// </summary>
@@ -16,6 +17,7 @@ public class AdsBridge : MonoBehaviour
     [SerializeField] private InterstitialAd interstitial;
     [SerializeField] private BannerAd banner;
     [SerializeField] private RewardedAd rewarded;
+    [SerializeField] private NativeAdView nativeView;
 
     [Header("Simulation Fallback")]
     [SerializeField] private bool simulateWhenNotReady = true;
@@ -55,6 +57,7 @@ public class AdsBridge : MonoBehaviour
             }
         }
         if (rewarded == null) rewarded = FindFirstObjectByType<RewardedAd>();
+        if (nativeView == null) nativeView = FindFirstObjectByType<NativeAdView>();
     }
 
     public void InitializeIfNeeded()
@@ -85,10 +88,10 @@ public class AdsBridge : MonoBehaviour
     public void ShowInterstitial(Action onCompleted)
     {
         AutoAssign();
-    if (interstitial != null && interstitial.IsLoaded)
+        if (interstitial != null && interstitial.IsLoaded)
         {
-        void CompleteAdmob(string id, bool completed) { interstitial.OnShowCompleteEvent -= CompleteAdmob; onCompleted?.Invoke(); }
-        interstitial.OnShowCompleteEvent += CompleteAdmob;
+            void CompleteAdmob(string id, bool completed) { interstitial.OnShowCompleteEvent -= CompleteAdmob; onCompleted?.Invoke(); }
+            interstitial.OnShowCompleteEvent += CompleteAdmob;
             interstitial.Show();
             return;
         }
@@ -159,7 +162,7 @@ public class AdsBridge : MonoBehaviour
     private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
     {
         if (!alwaysShowBanner) return;
-    ShowBanner();
+        ShowBanner();
     }
 
     private void OnDestroy()
@@ -168,6 +171,42 @@ public class AdsBridge : MonoBehaviour
         {
             UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
         }
+    }
+
+    // ---------------- Native ----------------
+    public bool IsNativeReady()
+    {
+        AutoAssign();
+        return nativeView != null && nativeView.IsLoaded;
+    }
+
+    public void LoadNative()
+    {
+        AutoAssign();
+        if (nativeView == null)
+        {
+            Debug.LogWarning("[AdsBridge] NativeAdView not found.");
+            return;
+        }
+        nativeView.LoadAd();
+    }
+
+    public void ShowNative()
+    {
+        AutoAssign();
+        if (nativeView == null)
+        {
+            Debug.LogWarning("[AdsBridge] NativeAdView not found.");
+            return;
+        }
+        nativeView.Show();
+    }
+
+    public void HideNative()
+    {
+        AutoAssign();
+        if (nativeView == null) return;
+        nativeView.Hide();
     }
 
     // ---------------- Rewarded ----------------

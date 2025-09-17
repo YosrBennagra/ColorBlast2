@@ -36,6 +36,7 @@ namespace ShapeBlaster.UI.MainMenu
 
         private void OnPlayClicked()
         {
+            ShapeBlaster.Adventure.AdventureSession.ExitAdventure();
             UnityEngine.SceneManagement.SceneManager.LoadScene("CoreGame");
         }
 
@@ -45,3 +46,4 @@ namespace ShapeBlaster.UI.MainMenu
         }
     }
 }
+

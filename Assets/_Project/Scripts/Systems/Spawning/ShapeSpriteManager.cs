@@ -17,9 +17,9 @@ public class SpriteTheme
     [Header("Sprites")]
     [Tooltip("Primary sprite if multiple sprites list is empty.")]
     public Sprite tileSprite;
-    [Tooltip("Optional list of sprites to add variation across tiles for this theme.")]
+    [HideInInspector]
     public List<Sprite> tileSprites = new List<Sprite>();
-    [Tooltip("If true, pick a random sprite per tile from tileSprites; otherwise use tileIndex % tileSprites.Count.")]
+    [HideInInspector]
     public bool randomizeTileSprites = false;
     [Range(0f, 1f)]
     public float spawnWeight = 1f; // Higher weight = more likely to spawn
@@ -99,6 +99,8 @@ public class ShapeSpriteManager : MonoBehaviour
     [SerializeField] private bool allowSameThemeForAllShapes = true;
     [SerializeField] private int minDifferentThemes = 1;
     [SerializeField] private int maxDifferentThemes = 3;
+    [Tooltip("If true, use a single sprite across all tiles in a shape (helps create a seamless repeated texture look).")]
+    [SerializeField] private bool uniformSpritePerShape = true;
     
     // Singleton-like access
     public static ShapeSpriteManager Instance { get; private set; }
@@ -107,16 +109,7 @@ public class ShapeSpriteManager : MonoBehaviour
     // Events
     public System.Action<Shape, SpriteTheme> OnShapeThemeApplied;
     
-    // Placement FX configuration
-    public enum PlacementFxMode { Simple, Cascade, OrbitAssemble, MagneticSnap }
-    [Header("Placement FX Settings")]
-    [SerializeField] private PlacementFxMode placementFxMode = PlacementFxMode.Simple;
-    [SerializeField, Range(0f, 0.2f)] private float placementShakeStrength = 0.06f;
-    [SerializeField, Range(0f, 0.3f)] private float orbitOutDistance = 0.25f;
-    [SerializeField, Range(0f, 0.5f)] private float orbitOutDuration = 0.12f;
-    [SerializeField, Range(0f, 0.6f)] private float orbitReturnDuration = 0.22f;
-    [SerializeField, Range(0f, 0.15f)] private float orbitStaggerPerUnit = 0.02f;
-    [SerializeField] private bool placementUseGridCrossRipple = true;
+    // Placement FX configuration (unified) — no per-field inspector header needed
     
     private void Awake()
     {
@@ -252,14 +245,8 @@ public class ShapeSpriteManager : MonoBehaviour
     {
         if (renderer == null) return;
         
-        // Choose sprite with per-theme variation support
-        if (theme.tileSprites != null && theme.tileSprites.Count > 0)
-        {
-            int pick = theme.randomizeTileSprites ? Random.Range(0, theme.tileSprites.Count) : (tileIndex % theme.tileSprites.Count);
-            var chosen = theme.tileSprites[Mathf.Clamp(pick, 0, theme.tileSprites.Count - 1)];
-            if (chosen != null) renderer.sprite = chosen;
-        }
-        else if (theme.tileSprite != null)
+        // Always use the single tileSprite to ensure a unified repeated look
+        if (theme.tileSprite != null)
         {
             renderer.sprite = theme.tileSprite;
         }
@@ -532,164 +519,34 @@ public class ShapeSpriteManager : MonoBehaviour
     public void PlayPlacementAnimation(Shape shape)
     {
         if (shape == null) return;
-        // Simplified, smooth placement by default (ignores mode to ensure clean look)
-        StartCoroutine(PlacementSimpleCoroutine(shape));
+        StartCoroutine(PlacementAsOneCoroutine(shape));
     }
 
-    private IEnumerator PlacementCascadeCoroutine(Shape shape)
+    // Removed: legacy per-tile cascade placement animation
+
+    // Removed: legacy per-tile simple placement animation
+
+    private IEnumerator PlacementAsOneCoroutine(Shape shape)
     {
-        shape.CacheTileRenderers();
-        var tiles = shape.TileRenderers;
-        if (tiles == null || tiles.Length == 0) yield break;
+        // Animate the root transform only, keeping tiles visually unified
+        var tr = shape.transform;
+        float durIn = 0.08f;
+        float durOut = 0.12f;
+        Vector3 baseScale = tr.localScale;
+        Vector3 down = baseScale * 0.96f;
+        Vector3 up = baseScale; // settle back to base
 
-        // Compute shape center in world space for wave delays
-        Vector3 center = Vector3.zero;
-        int live = 0;
-        for (int i = 0; i < tiles.Length; i++)
-        {
-            if (tiles[i] == null) continue; center += tiles[i].transform.position; live++;
-        }
-        if (live > 0) center /= live; else center = shape.transform.position;
+        // Optional simple ring + grid ripple
+        TryPlayGridCrossRipple(tr.position);
+        PlayPlacementRing(tr.position);
 
-        // Configure timing
-        float baseDelay = 0.0f;
-        float delayPerUnit = 0.025f; // wavefront speed
-        float popIn = 0.12f;
-        float settle = 0.08f;
-
-        // Kick off per-tile animations with distance-based stagger
-        for (int i = 0; i < tiles.Length; i++)
-        {
-            var sr = tiles[i]; if (sr == null) continue;
-            Vector3 wp = sr.transform.position;
-            float d = Vector3.Distance(wp, center);
-            float delay = baseDelay + d * delayPerUnit;
-
-            // Capture initial state
-            var startScale = sr.transform.localScale;
-            var startColor = sr.color;
-
-            // Sequence: slight scale down then pop up, tiny rotation jiggle, color flash to white, then settle
-            var seq = DOTween.Sequence();
-            seq.SetDelay(delay);
-            seq.Append(sr.transform.DOScale(startScale * 0.9f, popIn * 0.35f).SetEase(Ease.OutSine));
-            seq.Append(sr.transform.DOScale(startScale * 1.12f, popIn * 0.65f).SetEase(Ease.OutBack));
-            seq.Join(sr.transform.DORotate(new Vector3(0,0,Random.Range(-6f,6f)), popIn, RotateMode.Fast).SetEase(Ease.OutSine));
-            seq.Join(sr.DOColor(Color.white, popIn * 0.5f).From(startColor));
-            seq.Append(sr.transform.DOScale(startScale, settle).SetEase(Ease.InSine));
-            seq.Join(sr.transform.DORotate(Vector3.zero, settle));
-            // Per-tile spark
-            seq.OnStart(() => SpawnTileSpark(wp, startColor));
-        }
-
-        // Wait maximum stagger duration to keep coroutine alive until all tiles done
-        // Estimate max distance to center to compute tail delay
-        float maxD = 0f;
-        for (int i = 0; i < tiles.Length; i++) if (tiles[i] != null) { float d = Vector3.Distance(tiles[i].transform.position, center); if (d > maxD) maxD = d; }
-        float maxDelay = baseDelay + maxD * delayPerUnit + popIn + settle + 0.02f;
-        float t0 = Time.time;
-        while (Time.time - t0 < maxDelay) yield return null;
+        var seq = DOTween.Sequence();
+        seq.Append(tr.DOScale(down, durIn).SetEase(Ease.OutCubic));
+        seq.Append(tr.DOScale(up, durOut).SetEase(Ease.OutBack));
+        yield return new WaitForSeconds(durIn + durOut + 0.02f);
     }
 
-    private IEnumerator PlacementSimpleCoroutine(Shape shape)
-    {
-        shape.CacheTileRenderers();
-        var tiles = shape.TileRenderers;
-        if (tiles == null || tiles.Length == 0) yield break;
-
-        float dur = 0.14f;
-        for (int i = 0; i < tiles.Length; i++)
-        {
-            var sr = tiles[i]; if (sr == null) continue;
-            var baseScale = sr.transform.localScale;
-            var baseColor = sr.color;
-            // Smooth scale-in from 0.96x to 1.0x, gentle brightness lift
-            var seq = DOTween.Sequence();
-            seq.Join(sr.transform.DOScale(baseScale * 0.96f, dur * 0.25f).From(baseScale).SetEase(Ease.OutCubic));
-            seq.Join(sr.DOColor(Color.Lerp(baseColor, Color.white, 0.15f), dur * 0.5f).From(baseColor).SetEase(Ease.OutSine));
-            seq.OnComplete(() => { if (sr != null) { sr.transform.localScale = baseScale; sr.color = baseColor; } });
-        }
-        yield return new WaitForSeconds(dur + 0.02f);
-    }
-
-    private IEnumerator PlacementOrbitCoroutine(Shape shape)
-    {
-        shape.CacheTileRenderers();
-        var tiles = shape.TileRenderers;
-        if (tiles == null || tiles.Length == 0) yield break;
-
-        // Center in local space
-        Vector3 centerLocal = Vector3.zero;
-        int count = 0;
-        for (int i = 0; i < tiles.Length; i++)
-        {
-            if (tiles[i] == null) continue; centerLocal += tiles[i].transform.localPosition; count++;
-        }
-        if (count > 0) centerLocal /= count;
-
-        // Animate each tile: slight outward orbit then snap back
-        for (int i = 0; i < tiles.Length; i++)
-        {
-            var sr = tiles[i]; if (sr == null) continue;
-            Vector3 finalLocal = sr.transform.localPosition;
-            Vector3 dir = (finalLocal - centerLocal).normalized;
-            if (dir.sqrMagnitude < 0.0001f) dir = Random.insideUnitCircle.normalized;
-            float outDist = orbitOutDistance * Random.Range(0.9f, 1.15f);
-            // Pick an out point rotated a bit
-            float rot = Random.Range(-35f, 35f) * Mathf.Deg2Rad;
-            Vector3 rdir = new Vector3(
-                dir.x * Mathf.Cos(rot) - dir.y * Mathf.Sin(rot),
-                dir.x * Mathf.Sin(rot) + dir.y * Mathf.Cos(rot),
-                0f);
-            Vector3 outLocal = finalLocal + rdir * outDist;
-            float d = Vector3.Distance(finalLocal, centerLocal);
-            float delay = d * Mathf.Max(0f, orbitStaggerPerUnit);
-
-            var seq = DOTween.Sequence();
-            seq.SetDelay(delay);
-            // trail from outLocal to final world pos
-            Vector3 worldFinal = sr.transform.position;
-            Vector3 worldOut = shape.transform.TransformPoint(outLocal);
-            seq.OnStart(() => SpawnTileTrail(worldOut, worldFinal, sr.color));
-            // jump out then return
-            seq.Append(sr.transform.DOLocalMove(outLocal, Mathf.Max(0.01f, orbitOutDuration)).SetEase(Ease.OutQuad));
-            // slight spin while returning
-            seq.Append(sr.transform.DOLocalMove(finalLocal, Mathf.Max(0.01f, orbitReturnDuration)).SetEase(Ease.OutBack));
-            seq.Join(sr.transform.DORotate(new Vector3(0,0, Random.Range(-15f,15f)), orbitReturnDuration * 0.9f));
-            // subtle white flash
-            seq.Join(sr.DOColor(Color.white, orbitReturnDuration * 0.4f).From(sr.color));
-            // spark on settle
-            seq.OnComplete(() => SpawnTileSpark(worldFinal, sr.color));
-        }
-
-        // Rough wait for the longest tween to finish
-        float maxD = 0f;
-        for (int i = 0; i < tiles.Length; i++) if (tiles[i] != null) { float d = Vector3.Distance(tiles[i].transform.localPosition, centerLocal); if (d > maxD) maxD = d; }
-        float wait = maxD * orbitStaggerPerUnit + orbitOutDuration + orbitReturnDuration + 0.05f;
-        float t0 = Time.time; while (Time.time - t0 < wait) yield return null;
-    }
-
-    private IEnumerator PlacementMagneticCoroutine(Shape shape)
-    {
-        // Magnetic snap: quick squish toward center then expand to final, with per-tile glow
-        shape.CacheTileRenderers(); var tiles = shape.TileRenderers; if (tiles == null || tiles.Length == 0) yield break;
-        Vector3 center = shape.transform.position;
-        float squish = 0.1f; float durIn = 0.08f; float durOut = 0.16f;
-        for (int i = 0; i < tiles.Length; i++)
-        {
-            var sr = tiles[i]; if (sr == null) continue;
-            Vector3 p = sr.transform.position;
-            Vector3 toward = Vector3.Lerp(p, center, 0.25f);
-            var seq = DOTween.Sequence();
-            seq.Append(sr.transform.DOMove(toward, durIn).SetEase(Ease.InQuad));
-            seq.Join(sr.transform.DOScale(sr.transform.localScale * (1f - squish), durIn));
-            seq.Append(sr.transform.DOMove(p, durOut).SetEase(Ease.OutBack));
-            seq.Join(sr.transform.DOScale(sr.transform.localScale, durOut));
-            seq.Join(sr.DOColor(Color.white, durOut * 0.4f).From(sr.color));
-            seq.OnStart(() => SpawnTileSpark(p, sr.color));
-        }
-        yield return new WaitForSeconds(durIn + durOut + 0.05f);
-    }
+    // Removed: legacy per-tile orbit and magnetic placement animations
 
     private void SpawnTileTrail(Vector3 worldStart, Vector3 worldEnd, Color tint)
     {
@@ -723,24 +580,7 @@ public class ShapeSpriteManager : MonoBehaviour
         PlayLineSweep(colStart, colEnd, 0.18f, 0.08f);
     }
 
-    private void SpawnTileSpark(Vector3 worldPos, Color tint)
-    {
-        var go = new GameObject("PlacementSparkFX");
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = GetWhiteSprite();
-        sr.color = new Color(tint.r, tint.g, tint.b, 0.9f);
-        sr.sortingOrder = 260;
-        go.transform.position = worldPos + new Vector3(0f, 0f, 0f);
-        float life = 0.25f;
-        Vector2 dir = (Vector2.up + Random.insideUnitCircle * 0.35f).normalized;
-        float dist = Random.Range(0.15f, 0.35f);
-        go.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
-        var seq = DOTween.Sequence();
-        seq.Join(go.transform.DOMove(worldPos + new Vector3(dir.x, dir.y, 0f) * dist, life).SetEase(Ease.OutQuad));
-        seq.Join(go.transform.DOScale(0.02f, life).SetEase(Ease.OutSine));
-        seq.Join(sr.DOFade(0f, life).From(0.9f));
-        seq.OnComplete(() => Destroy(go));
-    }
+    // Removed: per-tile spark FX (not used by unified placement)
 
     private void PlayPlacementRing(Vector3 worldPosition)
     {
@@ -826,51 +666,7 @@ public class ShapeSpriteManager : MonoBehaviour
         return themeStorage?.CurrentTheme;
     }
     
-    #region Editor Helper Methods
-    
-    [System.Serializable]
-    public class EditorHelpers
-    {
-        [Header("Quick Setup")]
-        public Sprite waterSprite;
-        public Sprite landSprite;
-    }
-    
-    [SerializeField] private EditorHelpers editorHelpers = new EditorHelpers();
-    
-    [ContextMenu("Setup Basic Water/Land Themes")]
-    private void SetupBasicThemes()
-    {
-        spriteThemes.Clear();
-        
-        // Water theme
-        if (editorHelpers.waterSprite != null)
-        {
-            SpriteTheme waterTheme = new SpriteTheme
-            {
-                themeName = "Water",
-                tileSprite = editorHelpers.waterSprite,
-                spawnWeight = 0.5f
-            };
-            spriteThemes.Add(waterTheme);
-        }
-        
-        // Land theme
-        if (editorHelpers.landSprite != null)
-        {
-            SpriteTheme landTheme = new SpriteTheme
-            {
-                themeName = "Land",
-                tileSprite = editorHelpers.landSprite,
-                spawnWeight = 0.5f
-            };
-            spriteThemes.Add(landTheme);
-        }
-        
-        Debug.Log("Basic Water/Land themes setup complete!");
-    }
-    
-    #endregion
+    // Removed editor helper quick-setup to keep runtime lean
 
     // --- Adventure/Level helpers ---
     /// <summary>

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 #if GOOGLE_MOBILE_ADS
 using GoogleMobileAds.Api;
 #endif
+using ShapeBlaster.Systems.Ads;
 
 [DefaultExecutionOrder(-10000)]
 public class AdsInitializer : MonoBehaviour
@@ -17,6 +18,7 @@ public class AdsInitializer : MonoBehaviour
   [SerializeField] bool autoLoadInterstitial = true;
   [SerializeField] bool autoLoadBanner = true;
   [SerializeField] bool autoLoadRewarded = true;
+  [SerializeField] bool autoLoadNative = true;
   [Header("Development/Test")]
   [Tooltip("Force Google test IDs when running Development builds.")]
   [SerializeField] bool useTestIdsInDevelopment = true;
@@ -65,5 +67,7 @@ public class AdsInitializer : MonoBehaviour
     if (autoLoadBanner && banner != null) banner.LoadBanner();
     var rewarded = FindFirstObjectByType<RewardedAd>();
     if (autoLoadRewarded && rewarded != null) rewarded.LoadAd();
+    var nativeAd = FindFirstObjectByType<NativeAdView>();
+    if (autoLoadNative && nativeAd != null) nativeAd.LoadAd();
   }
 }

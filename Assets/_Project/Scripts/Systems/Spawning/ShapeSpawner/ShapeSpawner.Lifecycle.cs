@@ -5,6 +5,7 @@ public partial class ShapeSpawner
 {
     private void OnEnable()
     {
+        EnsureShapesParent();
         AlignSpawnPointsIfNeeded();
     }
 
@@ -28,6 +29,7 @@ public partial class ShapeSpawner
     private void Start()
     {
         if (!Application.isPlaying) return;
+        EnsureShapesParent();
         if (spawnPoints.Length != 3)
         {
             Debug.LogError("ShapeSpawner requires exactly 3 spawn points!");
@@ -35,6 +37,22 @@ public partial class ShapeSpawner
         }
         Gameplay.LineClearSystem.OnLinesCleared += OnLinesCleared;
         if (autoSpawnOnStart) SpawnNewShapes();
+    }
+
+    private void EnsureShapesParent()
+    {
+        if (!autoCreateShapesParent) return;
+        if (shapesParent != null) return;
+        // Try to find by name first (supports both exact and common typos)
+        var found = GameObject.Find(shapesParentName)
+                    ?? GameObject.Find("Shape Partial")
+                    ?? GameObject.Find("Shapes Partial")
+                    ?? GameObject.Find("Shapes");
+        if (found == null)
+        {
+            found = new GameObject(string.IsNullOrWhiteSpace(shapesParentName) ? "Shap Partial" : shapesParentName);
+        }
+        shapesParent = found.transform;
     }
 
     private void OnDestroy()

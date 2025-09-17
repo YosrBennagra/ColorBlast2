@@ -1,0 +1,728 @@
+fileFormatVersion: 2
+guid: ed5baeb58f2f10743ab7ddf9c4ed4d6e
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4088724351389431428
+    second: Sprite_Cloud_3_0
+  - first:
+      213: 3758902339263385204
+    second: Sprite_Cloud_3_1
+  - first:
+      213: 2997618535818657296
+    second: Sprite_Cloud_3_2
+  - first:
+      213: -6594540416111308968
+    second: Sprite_Cloud_3_3
+  - first:
+      213: 7563729618776608369
+    second: Sprite_Cloud_3_4
+  - first:
+      213: -1452120167254126672
+    second: Sprite_Cloud_3_5
+  - first:
+      213: -7886585219785985679
+    second: Sprite_Cloud_3_6
+  - first:
+      213: -3963266406424502019
+    second: Sprite_Cloud_3_7
+  - first:
+      213: -4267870288369218333
+    second: Sprite_Cloud_3_8
+  - first:
+      213: 9074210866552028591
+    second: Sprite_Cloud_3_9
+  - first:
+      213: -192131822232341898
+    second: Sprite_Cloud_3_10
+  - first:
+      213: 5254446886316050690
+    second: Sprite_Cloud_3_11
+  - first:
+      213: -8351644934411631296
+    second: Sprite_Cloud_3_12
+  - first:
+      213: 2990571199517684984
+    second: Sprite_Cloud_3_13
+  - first:
+      213: -4367964916171539508
+    second: Sprite_Cloud_3_14
+  - first:
+      213: 5963606243630039831
+    second: Sprite_Cloud_3_15
+  - first:
+      213: -8784113002103380584
+    second: Sprite_Cloud_3_16
+  - first:
+      213: 3101733773007234757
+    second: Sprite_Cloud_3_17
+  - first:
+      213: 8042263147775002984
+    second: Sprite_Cloud_3_18
+  - first:
+      213: -4115420651139638545
+    second: Sprite_Cloud_3_19
+  - first:
+      213: 7708452517830846260
+    second: Sprite_Cloud_3_20
+  - first:
+      213: -1236578956401547186
+    second: Sprite_Cloud_3_21
+  - first:
+      213: 4841255820779149501
+    second: Sprite_Cloud_3_22
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 64
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1536
+        height: 1024
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4867e0572211eb830800000000000000
+      internalID: 4088724351389431428
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_1
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 394
+        width: 16
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 47ecd2513cd4a2430800000000000000
+      internalID: 3758902339263385204
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_2
+      rect:
+        serializedVersion: 2
+        x: 11
+        y: 363
+        width: 6
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 01ef89f1d2ea99920800000000000000
+      internalID: 2997618535818657296
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_3
+      rect:
+        serializedVersion: 2
+        x: 11
+        y: 356
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85f8ab05e6c7b74a0800000000000000
+      internalID: -6594540416111308968
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_4
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 302
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 17ec7409304c7f860800000000000000
+      internalID: 7563729618776608369
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_5
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 285
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0bf03abc66809dbe0800000000000000
+      internalID: -1452120167254126672
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_6
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 279
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1717fcb07883d8290800000000000000
+      internalID: -7886585219785985679
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_7
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 271
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df024de9336aff8c0800000000000000
+      internalID: -3963266406424502019
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_8
+      rect:
+        serializedVersion: 2
+        x: 1041
+        y: 267
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3ec0f4ab59a75c4c0800000000000000
+      internalID: -4267870288369218333
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_9
+      rect:
+        serializedVersion: 2
+        x: 75
+        y: 259
+        width: 22
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fadb2d5b4b21eed70800000000000000
+      internalID: 9074210866552028591
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_10
+      rect:
+        serializedVersion: 2
+        x: 125
+        y: 259
+        width: 291
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 672fac92029655df0800000000000000
+      internalID: -192131822232341898
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_11
+      rect:
+        serializedVersion: 2
+        x: 439
+        y: 257
+        width: 273
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 20986069a9b8be840800000000000000
+      internalID: 5254446886316050690
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_12
+      rect:
+        serializedVersion: 2
+        x: 813
+        y: 248
+        width: 216
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 045443a5e2ff81c80800000000000000
+      internalID: -8351644934411631296
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_13
+      rect:
+        serializedVersion: 2
+        x: 1028
+        y: 255
+        width: 28
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8f4f3c649a4a08920800000000000000
+      internalID: 2990571199517684984
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_14
+      rect:
+        serializedVersion: 2
+        x: 1055
+        y: 259
+        width: 29
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ccbf93c1d0fd163c0800000000000000
+      internalID: -4367964916171539508
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_15
+      rect:
+        serializedVersion: 2
+        x: 1083
+        y: 258
+        width: 31
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 713ced3384cf2c250800000000000000
+      internalID: 5963606243630039831
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_16
+      rect:
+        serializedVersion: 2
+        x: 1116
+        y: 257
+        width: 210
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 895ecbac3cf881680800000000000000
+      internalID: -8784113002103380584
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_17
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 247
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5c6adefce629b0b20800000000000000
+      internalID: 3101733773007234757
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_18
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 239
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 869085129bbdb9f60800000000000000
+      internalID: 8042263147775002984
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_19
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 231
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fead383e8b613e6c0800000000000000
+      internalID: -4115420651139638545
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_20
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 223
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 437e54d49bce9fa60800000000000000
+      internalID: 7708452517830846260
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_21
+      rect:
+        serializedVersion: 2
+        x: 994
+        y: 200
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e4866f6adf9c6dee0800000000000000
+      internalID: -1236578956401547186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sprite_Cloud_3_22
+      rect:
+        serializedVersion: 2
+        x: 994
+        y: 152
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: db85558d4889f2340800000000000000
+      internalID: 4841255820779149501
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Sprite_Cloud_3_0: 4088724351389431428
+      Sprite_Cloud_3_1: 3758902339263385204
+      Sprite_Cloud_3_10: -192131822232341898
+      Sprite_Cloud_3_11: 5254446886316050690
+      Sprite_Cloud_3_12: -8351644934411631296
+      Sprite_Cloud_3_13: 2990571199517684984
+      Sprite_Cloud_3_14: -4367964916171539508
+      Sprite_Cloud_3_15: 5963606243630039831
+      Sprite_Cloud_3_16: -8784113002103380584
+      Sprite_Cloud_3_17: 3101733773007234757
+      Sprite_Cloud_3_18: 8042263147775002984
+      Sprite_Cloud_3_19: -4115420651139638545
+      Sprite_Cloud_3_2: 2997618535818657296
+      Sprite_Cloud_3_20: 7708452517830846260
+      Sprite_Cloud_3_21: -1236578956401547186
+      Sprite_Cloud_3_22: 4841255820779149501
+      Sprite_Cloud_3_3: -6594540416111308968
+      Sprite_Cloud_3_4: 7563729618776608369
+      Sprite_Cloud_3_5: -1452120167254126672
+      Sprite_Cloud_3_6: -7886585219785985679
+      Sprite_Cloud_3_7: -3963266406424502019
+      Sprite_Cloud_3_8: -4267870288369218333
+      Sprite_Cloud_3_9: 9074210866552028591
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

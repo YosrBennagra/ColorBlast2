@@ -5,7 +5,7 @@ namespace ShapeBlaster.Systems.Ads
 {
     /// <summary>
     /// Wrapper that matches the expected AdService API used around the project,
-    /// but delegates to your AdsInitializer/InterstitialAd/BannerAd (or AdsBridge if present).
+    /// but delegates to your AdsInitializer/InterstitialAd/BannerAd/NativeAdView (or AdsBridge if present).
     /// Rewarded ads are simulated unless you add a RewardedAd component.
     /// </summary>
     public class AdService : MonoBehaviour
@@ -21,6 +21,7 @@ namespace ShapeBlaster.Systems.Ads
 
         private InterstitialAd interstitial;
         private BannerAd banner;
+        private NativeAdView native;
         private AdsInitializer initializer;
         private AdsBridge bridge; // optional helper if present
 
@@ -39,6 +40,7 @@ namespace ShapeBlaster.Systems.Ads
             if (initializer == null) initializer = FindFirstObjectByType<AdsInitializer>();
             if (interstitial == null) interstitial = FindFirstObjectByType<InterstitialAd>();
             if (banner == null) banner = FindFirstObjectByType<BannerAd>();
+            if (native == null) native = FindFirstObjectByType<NativeAdView>();
         }
 
         private void Log(string msg)
@@ -84,6 +86,19 @@ namespace ShapeBlaster.Systems.Ads
         public void ShowRewarded(Action<bool> completed, Action fallback)
         {
             FindAdapters();
+            if (bridge != null)
+            {
+                bridge.ShowRewarded(result =>
+                {
+                    completed?.Invoke(result);
+                    if (!result)
+                    {
+                        fallback?.Invoke();
+                    }
+                });
+                return;
+            }
+
             // No dedicated RewardedAd component provided; use simulation or fallback
             if (simulateWhenUnavailable)
             {
@@ -108,7 +123,31 @@ namespace ShapeBlaster.Systems.Ads
             if (interstitial != null) interstitial.RequestLoad();
         }
 
-        public void LoadRewarded() { /* no-op until RewardedAd is added; simulation handles flow */ }
+        public void LoadRewarded()
+        {
+            // no-op until a RewardedAd component is added; simulation handles flow
+        }
+
+        public void LoadNative()
+        {
+            FindAdapters();
+            if (bridge != null) { bridge.LoadNative(); return; }
+            native?.LoadAd();
+        }
+
+        public void ShowNative()
+        {
+            FindAdapters();
+            if (bridge != null) { bridge.ShowNative(); return; }
+            native?.Show();
+        }
+
+        public void HideNative()
+        {
+            FindAdapters();
+            if (bridge != null) { bridge.HideNative(); return; }
+            native?.Hide();
+        }
 
         public void ShowBanner()
         {
@@ -140,6 +179,17 @@ namespace ShapeBlaster.Systems.Ads
             return interstitial != null && interstitial.IsLoaded;
         }
 
-        public bool IsRewardedReady() { return simulateWhenUnavailable; }
+        public bool IsNativeReady()
+        {
+            FindAdapters();
+            if (bridge != null) return bridge.IsNativeReady();
+            return native != null && native.IsLoaded;
+        }
+
+        public bool IsRewardedReady()
+        {
+            if (bridge != null) return bridge.IsRewardedReady();
+            return simulateWhenUnavailable;
+        }
     }
 }

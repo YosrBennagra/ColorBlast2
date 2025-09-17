@@ -17,6 +17,8 @@ public class AudioManager : MonoBehaviour
 
     [Header("SFX")] 
     [Range(0f,1f)][SerializeField] private float sfxVolume = 1f;
+    private const string SfxMuteKey = "Audio.SfxMuted"; // 1 = muted, 0 = unmuted
+    private bool sfxMuted;
 
     private const string MusicMuteKey = "Audio.MusicMuted"; // 1 = muted, 0 = unmuted
 
@@ -46,6 +48,13 @@ public class AudioManager : MonoBehaviour
             PlayerPrefs.Save();
         }
         musicMuted = PlayerPrefs.GetInt(MusicMuteKey, 1) == 1;
+        // Initialize SFX mute state (default unmuted if not set)
+        if (!PlayerPrefs.HasKey(SfxMuteKey))
+        {
+            PlayerPrefs.SetInt(SfxMuteKey, 0);
+            PlayerPrefs.Save();
+        }
+        sfxMuted = PlayerPrefs.GetInt(SfxMuteKey, 0) == 1;
         ApplyMusicVolume();
     }
 
@@ -93,6 +102,7 @@ public class AudioManager : MonoBehaviour
     }
 
     public bool IsMusicMuted() => musicMuted;
+    public bool IsSfxMuted() => sfxMuted;
 
     private void ApplyMusicVolume()
     {
@@ -115,5 +125,21 @@ public class AudioManager : MonoBehaviour
     public void StopMusic()
     {
         musicSource.Stop();
+    }
+
+    // SFX controls used by gameplay and AudioShim
+    public void SetSfxMuted(bool muted)
+    {
+        sfxMuted = muted;
+        PlayerPrefs.SetInt(SfxMuteKey, sfxMuted ? 1 : 0);
+        PlayerPrefs.Save();
+    }
+
+    public void PlaySfxAt(Vector3 worldPos, AudioClip clip, float volumeScale = 1f)
+    {
+        if (clip == null || sfxMuted) return;
+        float vol = Mathf.Clamp01(volumeScale) * Mathf.Clamp01(sfxVolume);
+        if (vol <= 0f) return;
+        AudioSource.PlayClipAtPoint(clip, worldPos, vol);
     }
 }

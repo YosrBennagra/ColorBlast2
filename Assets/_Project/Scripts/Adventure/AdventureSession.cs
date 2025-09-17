@@ -41,6 +41,13 @@ namespace ShapeBlaster.Adventure
         public static void ExitAdventure()
         {
             IsAdventureMode = false;
+            CurrentLevelIndex = 0;
+
+            var manager = AdventureManager.Instance;
+            if (manager != null)
+            {
+                UnityEngine.Object.Destroy(manager.gameObject);
+            }
         }
 
         public static int ComputeWeekId()

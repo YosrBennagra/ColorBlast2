@@ -1,4 +1,4 @@
-
+﻿
 using UnityEngine;
 using TMPro;
 using Gameplay;
@@ -30,7 +30,7 @@ namespace ShapeBlaster.Systems.Scoring
     [SerializeField] private Canvas comboCanvasOverride;
     [Tooltip("Lifetime (seconds) before the combo sprite is auto destroyed (excludes pop animation time).")]
     [SerializeField] private float comboSpriteExtraLifetime = 0.5f;
-    [Tooltip("Don’t destroy spawned combo sprite automatically (useful for debugging placement).")]
+    [Tooltip("Donâ€™t destroy spawned combo sprite automatically (useful for debugging placement).")]
     [SerializeField] private bool keepComboSpriteForDebug = false;
     [Tooltip("Scale multiplier applied after pop animation (1 = original). Useful to audition final resting size.")]
     [SerializeField] private float postPopRestScale = 1f;
@@ -57,6 +57,10 @@ namespace ShapeBlaster.Systems.Scoring
     [Tooltip("Bonus points when the board is entirely cleared in one cascade.")]
     public int perfectClearBonus = 1000;
 
+        [Header("Score Animation")]
+        [SerializeField, Range(1.0f, 1.5f)] private float scorePopScale = 1.08f;
+        [SerializeField, Range(0.05f, 0.6f)] private float scorePopDuration = 0.22f;
+
     private int score = 0;
     private int highScore = 0;
     private int displayedScore = 0;
@@ -77,7 +81,14 @@ namespace ShapeBlaster.Systems.Scoring
             highScore = PlayerPrefs.GetInt("HighScore", 0);
             displayedScore = score;
             displayedHighScore = highScore;
-        UpdateScoreUI();
+            UpdateScoreUI();
+        }
+
+        private void OnValidate()
+        {
+            scorePopScale = Mathf.Clamp(scorePopScale, 1f, 1.5f);
+            scorePopDuration = Mathf.Clamp(scorePopDuration, 0.05f, 0.6f);
+            scoreBaseScaleCaptured = false;
         }
 
         private void Update()
@@ -235,21 +246,28 @@ namespace ShapeBlaster.Systems.Scoring
         }
 
         private Vector3 scoreBaseScale = Vector3.one;
+        private bool scoreBaseScaleCaptured = false;
 
         private void AnimateScore()
         {
             if (scoreDisplay && scoreDisplay.scoreText)
             {
+                RectTransform rect = scoreDisplay.scoreText.rectTransform;
+                if (!scoreBaseScaleCaptured)
+                {
+                    scoreBaseScale = rect.localScale;
+                    scoreBaseScaleCaptured = true;
+                }
+
                 if (scorePunchRoutine != null)
                 {
                     StopCoroutine(scorePunchRoutine);
-                    // ensure reset to base
-                    scoreDisplay.scoreText.rectTransform.localScale = scoreBaseScale;
+                    rect.localScale = scoreBaseScale;
                 }
-                scorePunchRoutine = StartCoroutine(SafePunchScore(scoreDisplay.scoreText.rectTransform));
+
+                scorePunchRoutine = StartCoroutine(SafePunchScore(rect));
             }
         }
-
         private void AnimateScoreIncrement(int from, int to)
         {
             if (scoreAnimRoutine != null) StopCoroutine(scoreAnimRoutine);
@@ -271,7 +289,7 @@ namespace ShapeBlaster.Systems.Scoring
                 t += Time.unscaledDeltaTime;
                 float p = Mathf.Pow(t / duration, 0.7f); // ease out
                 displayedScore = Mathf.RoundToInt(Mathf.Lerp(from, to, p));
-                UpdateScoreUI();
+            UpdateScoreUI();
                 yield return null;
             }
             displayedScore = to;
@@ -305,7 +323,7 @@ namespace ShapeBlaster.Systems.Scoring
                 t += Time.unscaledDeltaTime;
                 float p = Mathf.Pow(t / duration, 0.7f);
                 displayedHighScore = Mathf.RoundToInt(Mathf.Lerp(from, to, p));
-                UpdateScoreUI();
+            UpdateScoreUI();
                 yield return null;
             }
             displayedHighScore = to;
@@ -383,35 +401,28 @@ namespace ShapeBlaster.Systems.Scoring
         private IEnumerator SafePunchScore(RectTransform target)
         {
             if (target == null) yield break;
-            // Cache base on first use
-            if (scoreBaseScale == Vector3.one)
-                scoreBaseScale = target.localScale;
-            target.localScale = scoreBaseScale;
 
-            float duration = 0.18f;
-            float t = 0f;
-            Vector3 up = scoreBaseScale * 1.12f;
-            // Up
-            while (t < duration * 0.5f)
+            Vector3 baseScale = scoreBaseScaleCaptured ? scoreBaseScale : target.localScale;
+            scoreBaseScale = baseScale;
+            scoreBaseScaleCaptured = true;
+
+            float duration = Mathf.Max(0.01f, scorePopDuration);
+            float elapsed = 0f;
+            float maxMultiplier = Mathf.Max(1f, scorePopScale);
+
+            while (elapsed < duration)
             {
-                t += Time.unscaledDeltaTime;
-                float a = Mathf.Clamp01(t / (duration * 0.5f));
-                target.localScale = Vector3.Lerp(scoreBaseScale, up, a);
+                elapsed += Time.unscaledDeltaTime;
+                float progress = Mathf.Clamp01(elapsed / duration);
+                float eased = Mathf.Sin(progress * Mathf.PI);
+                float multiplier = Mathf.LerpUnclamped(1f, maxMultiplier, eased);
+                target.localScale = baseScale * multiplier;
                 yield return null;
             }
-            // Down
-            t = 0f;
-            while (t < duration * 0.5f)
-            {
-                t += Time.unscaledDeltaTime;
-                float a = Mathf.Clamp01(t / (duration * 0.5f));
-                target.localScale = Vector3.Lerp(up, scoreBaseScale, a);
-                yield return null;
-            }
-            target.localScale = scoreBaseScale;
+
+            target.localScale = baseScale;
             scorePunchRoutine = null;
         }
-
         private void PopComboSprite()
         {
             if (!enableComboSprite) return; // safety gate
@@ -570,3 +581,17 @@ namespace ShapeBlaster.Systems.Scoring
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

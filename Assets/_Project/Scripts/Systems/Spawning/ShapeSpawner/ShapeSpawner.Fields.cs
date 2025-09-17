@@ -9,6 +9,12 @@ public partial class ShapeSpawner : MonoBehaviour
     [SerializeField] private GameObject[] shapePrefabs;
     [SerializeField] private Transform[] spawnPoints = new Transform[3];
     [SerializeField] private bool autoSpawnOnStart = true;
+    
+    [Header("Hierarchy Management")]
+    [Tooltip("Automatically create or re-use a parent transform for spawned shapes.")]
+    [SerializeField] private bool autoCreateShapesParent = true;
+    [SerializeField] private Transform shapesParent;
+    [SerializeField] private string shapesParentName = "Shap Partial";
 
     [Header("Adaptive Assist")]
     [Range(0f, 1f)]
@@ -29,6 +35,8 @@ public partial class ShapeSpawner : MonoBehaviour
     [SerializeField] private Color spawnGizmoColor = new Color(0.3f, 0.9f, 1f, 0.6f);
     [SerializeField] private Vector2 previewSize = new Vector2(2f, 2f);
     [SerializeField] private bool centerSpawnedShapesInGizmo = true;
+    [SerializeField] private bool autoKeepTrayOutsideGrid = true;
+    [SerializeField] private float trayMarginFromGrid = 0.25f;
 
     [Header("Sprite Theme Settings")]
     [SerializeField] private ShapeSpriteManager spriteManager;
